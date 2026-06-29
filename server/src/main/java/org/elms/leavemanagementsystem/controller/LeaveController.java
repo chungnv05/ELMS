@@ -27,13 +27,13 @@ public class LeaveController {
         this.leaveTypeService = leaveTypeService;
     }
 
-    // 1. API lấy danh sách loại nghỉ phép (Angular sẽ gọi cái này để đổ vào dropdown)
+    // API lấy danh sách loại nghỉ phép
     @GetMapping("/types")
     public ResponseEntity<List<LeaveType>> getLeaveTypes() {
         return ResponseEntity.ok(leaveTypeService.getActiveLeaveTypes());
     }
 
-    // 2. API tạo đơn (Angular gọi POST tới đây)
+    // API tạo đơn
     @PostMapping("/create")
     public ResponseEntity<?> submitLeaveRequest(
             @Valid @RequestBody LeaveRequestForm form,

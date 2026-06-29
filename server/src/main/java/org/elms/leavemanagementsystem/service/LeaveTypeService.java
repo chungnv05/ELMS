@@ -1,6 +1,7 @@
 package org.elms.leavemanagementsystem.service;
 
 import org.elms.leavemanagementsystem.entity.LeaveType;
+import org.elms.leavemanagementsystem.exception.ResourceNotFoundException;
 import org.elms.leavemanagementsystem.repository.LeaveTypeRepository;
 import org.springframework.stereotype.Service;
 
@@ -23,5 +24,10 @@ public class LeaveTypeService {
         return leaveTypeRepository.findAll().stream()
                 .filter(LeaveType::getIsActive)
                 .collect(Collectors.toList());
+    }
+
+    public LeaveType getLeaveTypeById(Integer typeId) {
+        return leaveTypeRepository.findById(typeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy loại nghỉ phép hợp lệ"));
     }
 }

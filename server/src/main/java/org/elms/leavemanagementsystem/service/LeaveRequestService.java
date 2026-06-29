@@ -1,6 +1,7 @@
 package org.elms.leavemanagementsystem.service;
 
 import org.elms.leavemanagementsystem.dto.request.LeaveRequestForm;
+import org.elms.leavemanagementsystem.dto.response.LeaveRequestsResponse;
 import org.elms.leavemanagementsystem.entity.*;
 import org.elms.leavemanagementsystem.exception.BusinessException;
 import org.elms.leavemanagementsystem.exception.FileStorageException;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.swing.plaf.PanelUI;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.Year;
@@ -23,37 +25,41 @@ import java.util.UUID;
 public class LeaveRequestService {
 
     private final LeaveRequestRepository leaveRequestRepository;
-    private final LeaveBalanceRepository leaveBalanceRepository;
-    private final ApprovalHistoryRepository approvalHistoryRepository;
-    private final EmployeeRepository employeeRepository;
-    private final LeaveTypeRepository leaveTypeRepository;
-    private final LeaveEvidenceRepository leaveEvidenceRepository;
+    private final LeaveBalanceService leaveBalanceService;
+    private final ApprovalHistoryService approvalHistoryService;
+    private final EmployeeService employeeService;
+    private final LeaveTypeService leaveTypeService;
+    private final LeaveEvidenceService leaveEvidenceService;
 
-    @Value("${file.upload-dir}")
-    private String UPLOAD_DIR;
+
 
     public LeaveRequestService(LeaveRequestRepository leaveRequestRepository,
-                               LeaveBalanceRepository leaveBalanceRepository,
-                               ApprovalHistoryRepository approvalHistoryRepository,
-                               EmployeeRepository employeeRepository,
-                               LeaveTypeRepository leaveTypeRepository,
-                               LeaveEvidenceRepository leaveEvidenceRepository) {
+                               LeaveBalanceService leaveBalanceService,
+                               ApprovalHistoryService approvalHistoryService,
+                               EmployeeService employeeService,
+                               LeaveTypeService leaveTypeService,
+                               LeaveEvidenceService leaveEvidenceService) {
         this.leaveRequestRepository = leaveRequestRepository;
-        this.leaveBalanceRepository = leaveBalanceRepository;
-        this.approvalHistoryRepository = approvalHistoryRepository;
-        this.employeeRepository = employeeRepository;
-        this.leaveTypeRepository = leaveTypeRepository;
-        this.leaveEvidenceRepository = leaveEvidenceRepository;
+        this.leaveBalanceService = leaveBalanceService;
+        this.approvalHistoryService = approvalHistoryService;
+        this.employeeService = employeeService;
+        this.leaveTypeService = leaveTypeService;
+        this.leaveEvidenceService = leaveEvidenceService;
+
+    }
+
+    public LeaveRequest getLeaveRequestById(Integer id) {
+        return leaveRequestRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn nghỉ phép phù hợp"));
+
     }
 
     @Transactional
     public void createLeaveRequest(Integer currentEmpId, LeaveRequestForm form) {
 
         // Lấy thông tin Employee và LeaveType
-        Employee employee = employeeRepository.findById(currentEmpId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông tin nhân viên!"));
-        LeaveType type = leaveTypeRepository.findById(form.getTypeId())
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy loại nghỉ phép!"));
+        Employee employee = employeeService.getEmployeeById(currentEmpId);
+        LeaveType type = leaveTypeService.getLeaveTypeById(form.getTypeId());
 
         // Validate thời gian hợp lệ
         if (form.getStartDate().isAfter(form.getEndDate())) {
@@ -83,18 +89,7 @@ public class LeaveRequestService {
 
         // Kiểm tra quỹ phép
         int currentYear = Year.now().getValue();
-        LeaveBalance balance = leaveBalanceRepository.findByEmployee_EmpIDAndId_Year(currentEmpId, currentYear)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy quỹ phép năm " + currentYear + " của bạn!"));
-
-        BigDecimal availableDays = balance.getTotalDays().subtract(balance.getUsedDays()).subtract(balance.getPendingDays());
-        if (availableDays.compareTo(requestDays) < 0) {
-            throw new BusinessException("Số ngày phép còn lại (" + availableDays + ") không đủ để tạo đơn (" + requestDays + " ngày)!");
-        }
-
-        // Trừ quỹ phép và thêm vào số ngày đang chờ duyệt
-        balance.setPendingDays(balance.getPendingDays().add(requestDays));
-        leaveBalanceRepository.save(balance);
-
+        leaveBalanceService.updatePendingDays(currentEmpId, currentYear, requestDays);
 
         LocalDateTime now = LocalDateTime.now();
         LeaveRequest request = new LeaveRequest();
@@ -113,54 +108,42 @@ public class LeaveRequestService {
         LeaveRequest savedRequest = leaveRequestRepository.save(request);
 
         //  Xử lý File đính kèm
-        if (form.getEvidenceFiles() != null && !form.getEvidenceFiles().isEmpty() && !form.getEvidenceFiles().get(0).isEmpty()) {
-            List<LeaveEvidence> evidenceList = new ArrayList<>();
-
-            // 8.1. Kiểm tra và tạo thư mục lưu trữ nếu chưa tồn tại
-            java.nio.file.Path uploadPath = java.nio.file.Paths.get(UPLOAD_DIR);
-            if (!java.nio.file.Files.exists(uploadPath)) {
-                try {
-                    java.nio.file.Files.createDirectories(uploadPath);
-                } catch (java.io.IOException e) {
-                    throw new RuntimeException("Không thể tạo thư mục lưu trữ file: " + e.getMessage());
-                }
-            }
-
-            // Duyệt qua từng file và tiến hành lưu
-            for (MultipartFile file : form.getEvidenceFiles()) {
-                if (file.isEmpty()) continue;
-
-                String originalFileName = file.getOriginalFilename();
-                // Dùng UUID nối với tên gốc để tránh việc 2 nhân viên tải lên file trùng tên nhau
-                String uniqueFileName = UUID.randomUUID().toString() + "_" + originalFileName;
-                java.nio.file.Path targetLocation = uploadPath.resolve(uniqueFileName);
-
-                try {
-                    // Thực hiện lưu file vật lý xuống ổ cứng
-                    java.nio.file.Files.copy(file.getInputStream(), targetLocation, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                } catch (java.io.IOException e) {
-                    throw new FileStorageException("Lỗi khi lưu file đính kèm: " + originalFileName, e);
-                }
-
-                // Lưu thông tin Metadata vào cơ sở dữ liệu
-                LeaveEvidence evidence = new LeaveEvidence();
-                evidence.setFileName(originalFileName);
-                // Lưu toàn bộ đường dẫn vật lý
-                evidence.setFilePath(targetLocation.toString());
-                evidence.setFileSize(file.getSize());
-                evidence.setMimeType(file.getContentType());
-                evidence.setLeaveRequest(savedRequest);
-                evidenceList.add(evidence);
-            }
-            leaveEvidenceRepository.saveAll(evidenceList);
-        }
+        leaveEvidenceService.saveEvidence(form, savedRequest);
 
         // Ghi vào ApprovalHistory
-        ApprovalHistory history = new ApprovalHistory();
-        history.setLeaveRequest(savedRequest);
-        history.setActor(employee);
-        history.setAction(ApprovalHistory.Action.SUBMITTED);
-        history.setStatusAfter(ApprovalHistory.Status.PENDING);
-        approvalHistoryRepository.save(history);
+        approvalHistoryService.createFirstHistory(
+                savedRequest,
+                employee,
+                ApprovalHistory.Action.SUBMITTED,
+                LeaveRequest.Status.PENDING,
+                "Tạo đơn nghỉ phép mới");
+    }
+
+    public List<LeaveRequestsResponse> getRequestsForManager(Integer managerId, String statusString) {
+        LeaveRequest.Status statusEnum = null;
+
+        if (statusString != null && !statusString.equalsIgnoreCase("ALL") && !statusString.trim().isEmpty()) {
+            try {
+                statusEnum = LeaveRequest.Status.valueOf(statusString.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new BusinessException("Trạng thái đơn không hợp lệ!");
+            }
+        }
+
+        List<LeaveRequest> requests = leaveRequestRepository.findRequestsForManager(managerId, statusEnum);
+
+        return requests.stream().map(request -> LeaveRequestsResponse.builder()
+                .requestId(request.getRequestID())
+                .requestCode(request.getRequestCode())
+                .employeeName(request.getEmployee().getFullName())
+                .leaveTypeName(request.getLeaveType().getName())
+                .startDate(request.getStartDate())
+                .endDate(request.getEndDate())
+                .totalDays(request.getTotalDays())
+                .reason(request.getReason())
+                .status(request.getStatus().name())
+                .createdAt(request.getCreatedAt())
+                .build()
+        ).toList();
     }
 }
