@@ -1,13 +1,16 @@
 package org.elms.leavemanagementsystem.service;
 
 import org.elms.leavemanagementsystem.dto.request.LeaveRequestForm;
+import org.elms.leavemanagementsystem.dto.response.LeaveRequestDetailResponse;
 import org.elms.leavemanagementsystem.dto.response.LeaveRequestsResponse;
 import org.elms.leavemanagementsystem.entity.*;
 import org.elms.leavemanagementsystem.exception.BusinessException;
 import org.elms.leavemanagementsystem.exception.FileStorageException;
 import org.elms.leavemanagementsystem.exception.ResourceNotFoundException;
 import org.elms.leavemanagementsystem.repository.*;
+import org.elms.leavemanagementsystem.util.DateUtils;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -20,11 +23,17 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class LeaveRequestService {
 
+    // Repository
     private final LeaveRequestRepository leaveRequestRepository;
+    private final ApprovalHistoryRepository approvalHistoryRepository;
+    private final LeaveEvidenceRepository leaveEvidenceRepository;
+
+    // Service hỗ trợ
     private final LeaveBalanceService leaveBalanceService;
     private final ApprovalHistoryService approvalHistoryService;
     private final EmployeeService employeeService;
@@ -33,19 +42,23 @@ public class LeaveRequestService {
 
 
 
+
     public LeaveRequestService(LeaveRequestRepository leaveRequestRepository,
                                LeaveBalanceService leaveBalanceService,
                                ApprovalHistoryService approvalHistoryService,
                                EmployeeService employeeService,
                                LeaveTypeService leaveTypeService,
-                               LeaveEvidenceService leaveEvidenceService) {
+                               LeaveEvidenceService leaveEvidenceService,
+                               ApprovalHistoryRepository approvalHistoryRepository,
+                               LeaveEvidenceRepository leaveEvidenceRepository) {
         this.leaveRequestRepository = leaveRequestRepository;
         this.leaveBalanceService = leaveBalanceService;
         this.approvalHistoryService = approvalHistoryService;
         this.employeeService = employeeService;
         this.leaveTypeService = leaveTypeService;
         this.leaveEvidenceService = leaveEvidenceService;
-
+        this.approvalHistoryRepository = approvalHistoryRepository;
+        this.leaveEvidenceRepository = leaveEvidenceRepository;
     }
 
     public LeaveRequest getLeaveRequestById(Integer id) {
@@ -80,16 +93,15 @@ public class LeaveRequestService {
         }
 
         // Tính số ngày nghỉ
-        long daysBetween = ChronoUnit.DAYS.between(form.getStartDate(), form.getEndDate()) + 1;
-        BigDecimal requestDays = BigDecimal.valueOf(daysBetween);
+        BigDecimal actualRequestDays = DateUtils.calculateWorkDays(form.getStartDate(), form.getEndDate());
 
-        if (requestDays.compareTo(BigDecimal.ZERO) <= 0) {
+        // Kiểm tra quỹ phép
+        if (actualRequestDays.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BusinessException("Số ngày xin nghỉ không hợp lệ!");
         }
 
-        // Kiểm tra quỹ phép
         int currentYear = Year.now().getValue();
-        leaveBalanceService.updatePendingDays(currentEmpId, currentYear, requestDays);
+        leaveBalanceService.updatePendingDays(currentEmpId, currentYear, actualRequestDays);
 
         LocalDateTime now = LocalDateTime.now();
         LeaveRequest request = new LeaveRequest();
@@ -98,7 +110,7 @@ public class LeaveRequestService {
         request.setLeaveType(type);
         request.setStartDate(form.getStartDate());
         request.setEndDate(form.getEndDate());
-        request.setTotalDays(requestDays);
+        request.setTotalDays(actualRequestDays);
         request.setReason(form.getReason());
         request.setStatus(LeaveRequest.Status.PENDING);
         request.setCreatedAt(now);
@@ -145,5 +157,52 @@ public class LeaveRequestService {
                 .createdAt(request.getCreatedAt())
                 .build()
         ).toList();
+    }
+
+    @Transactional
+    public LeaveRequestDetailResponse getLeaveRequestDetail(Integer requestId, Integer currentEmpId, String role) {
+        LeaveRequest leaveRequest = leaveRequestRepository.findByRequestID(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn nghỉ phép!"));
+
+        // Lấy lịch sử duyệt và minh chứng
+        List<ApprovalHistory> histories = approvalHistoryRepository.findByLeaveRequest_RequestIDOrderByCreatedAtDesc(requestId);
+        List<LeaveEvidence> evidences = leaveEvidenceRepository.findByLeaveRequest_RequestID(requestId);
+
+        boolean isOwner = leaveRequest.getEmployee().getEmpID().equals(currentEmpId);
+        boolean isHr = "ROLE_HR_ADMIN".equals(role);
+        boolean isManager = "ROLE_MANAGER".equals(role) &&
+                leaveRequest.getEmployee().getDepartment().getDepartmentID().equals(employeeService.getDepartmentOfEmployee(currentEmpId));
+
+        if (!isOwner && !isHr && !isManager) {
+            throw new AccessDeniedException("Không đủ quyền để thực hiện thao tác!");
+        }
+
+        return LeaveRequestDetailResponse.builder()
+                .requestId(leaveRequest.getRequestID())
+                .requestCode(leaveRequest.getRequestCode())
+                .employeeName(leaveRequest.getEmployee().getFullName())
+                .employeeCode(leaveRequest.getEmployee().getEmpCode())
+                .leaveTypeName(leaveRequest.getLeaveType().getName())
+                .startDate(leaveRequest.getStartDate())
+                .endDate(leaveRequest.getEndDate())
+                .totalDays(leaveRequest.getTotalDays())
+                .reason(leaveRequest.getReason())
+                .status(leaveRequest.getStatus().name())
+                .rejectionReason(leaveRequest.getRejectionReason())
+                .createdAt(leaveRequest.getCreatedAt())
+                .evidenceFiles(evidences.stream()
+                        .map(e -> e.getFileName())
+                        .collect(Collectors.toList()))
+                .approvalHistories(histories.stream()
+                        .map(h -> LeaveRequestDetailResponse.ApprovalHistoryResponse.builder()
+                                .approverName(h.getActor().getFullName())
+                                .action(h.getAction().name())
+                                .comment(h.getComment())
+                                .createdAt(h.getCreatedAt())
+                                .build())
+                        .collect(Collectors.toList()))
+                .build();
+
+
     }
 }

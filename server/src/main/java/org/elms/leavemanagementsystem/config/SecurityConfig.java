@@ -58,7 +58,7 @@ public class SecurityConfig {
 
                 // Cấu hình phân quyền
                 .authorizeHttpRequests(auth -> auth
-
+                        // Cho phép đăng nhập
                         .requestMatchers("/api/auth/**").permitAll()
 
                         // Phân quyền API

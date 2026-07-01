@@ -26,7 +26,7 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
         new ObjectMapper().writeValue(
                 response.getOutputStream(),
-                Map.of("message", "Yêu cầu đăng nhập!")
+                Map.of("message", "Người dùng chưa xác thực!")
         );
     }
 }

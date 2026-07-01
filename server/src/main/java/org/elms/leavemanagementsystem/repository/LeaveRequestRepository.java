@@ -1,6 +1,7 @@
 package org.elms.leavemanagementsystem.repository;
 
 import org.elms.leavemanagementsystem.entity.LeaveRequest;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Integer> {
@@ -37,4 +39,7 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Inte
             "ORDER BY lr.createdAt DESC")
     List<LeaveRequest> findRequestsForManager(@Param("managerId") Integer managerId,
                                               @Param("status") LeaveRequest.Status status);
+
+    @EntityGraph(attributePaths = {"employee", "leaveType"})
+    Optional<LeaveRequest> findByRequestID(Integer requestID);
 }

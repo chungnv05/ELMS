@@ -9,6 +9,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -16,6 +21,7 @@ import java.util.UUID;
 @Service
 public class LeaveEvidenceService {
     private final LeaveEvidenceRepository leaveEvidenceRepository;
+
     @Value("${file.upload-dir}")
     private String UPLOAD_DIR;
 
@@ -24,45 +30,47 @@ public class LeaveEvidenceService {
     }
 
     public void saveEvidence(LeaveRequestForm form, LeaveRequest leaveRequest) {
-        if (form.getEvidenceFiles() != null && !form.getEvidenceFiles().isEmpty() && !form.getEvidenceFiles().get(0).isEmpty()) {
-            List<LeaveEvidence> evidenceList = new ArrayList<>();
+        if (form.getEvidenceFiles() == null || form.getEvidenceFiles().isEmpty()) return;
 
-            // 8.1. Kiểm tra và tạo thư mục lưu trữ nếu chưa tồn tại
-            java.nio.file.Path uploadPath = java.nio.file.Paths.get(UPLOAD_DIR);
-            if (!java.nio.file.Files.exists(uploadPath)) {
-                try {
-                    java.nio.file.Files.createDirectories(uploadPath);
-                } catch (java.io.IOException e) {
-                    throw new RuntimeException("Không thể tạo thư mục lưu trữ file: " + e.getMessage());
-                }
+        // 1. Đảm bảo thư mục lưu trữ tồn tại
+        Path uploadPath = Paths.get(UPLOAD_DIR).toAbsolutePath().normalize();
+        try {
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+            }
+        } catch (IOException e) {
+            throw new FileStorageException("Không thể tạo thư mục lưu trữ file", e);
+        }
+
+        List<LeaveEvidence> evidenceList = new ArrayList<>();
+
+        for (MultipartFile file : form.getEvidenceFiles()) {
+            if (file.isEmpty()) continue;
+
+            // 2. Tạo tên file duy nhất (UUID + Tên gốc)
+            String originalFileName = file.getOriginalFilename();
+            String uniqueFileName = UUID.randomUUID().toString() + "_" + originalFileName;
+            Path targetLocation = uploadPath.resolve(uniqueFileName);
+
+            // 3. Lưu file vật lý
+            try {
+                Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException e) {
+                throw new FileStorageException("Lỗi khi lưu file: " + originalFileName, e);
             }
 
-            // Duyệt qua từng file và tiến hành lưu
-            for (MultipartFile file : form.getEvidenceFiles()) {
-                if (file.isEmpty()) continue;
+            // 4. Lưu Metadata vào DB
+            LeaveEvidence evidence = new LeaveEvidence();
+            evidence.setFileName(uniqueFileName); // QUAN TRỌNG: Lưu tên file đã đổi
+            evidence.setFilePath(uniqueFileName); // Chỉ lưu tên file (Relative Path)
+            evidence.setFileSize(file.getSize());
+            evidence.setMimeType(file.getContentType());
+            evidence.setLeaveRequest(leaveRequest);
 
-                String originalFileName = file.getOriginalFilename();
-                // Dùng UUID nối với tên gốc để tránh việc 2 nhân viên tải lên file trùng tên nhau
-                String uniqueFileName = UUID.randomUUID().toString() + "_" + originalFileName;
-                java.nio.file.Path targetLocation = uploadPath.resolve(uniqueFileName);
+            evidenceList.add(evidence);
+        }
 
-                try {
-                    // Thực hiện lưu file vật lý xuống ổ cứng
-                    java.nio.file.Files.copy(file.getInputStream(), targetLocation, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                } catch (java.io.IOException e) {
-                    throw new FileStorageException("Lỗi khi lưu file đính kèm: " + originalFileName, e);
-                }
-
-                // Lưu thông tin Metadata vào cơ sở dữ liệu
-                LeaveEvidence evidence = new LeaveEvidence();
-                evidence.setFileName(originalFileName);
-                // Lưu toàn bộ đường dẫn vật lý
-                evidence.setFilePath(targetLocation.toString());
-                evidence.setFileSize(file.getSize());
-                evidence.setMimeType(file.getContentType());
-                evidence.setLeaveRequest(leaveRequest);
-                evidenceList.add(evidence);
-            }
+        if (!evidenceList.isEmpty()) {
             leaveEvidenceRepository.saveAll(evidenceList);
         }
     }

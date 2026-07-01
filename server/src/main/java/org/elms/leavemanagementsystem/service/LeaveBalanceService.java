@@ -23,12 +23,11 @@ public class LeaveBalanceService {
         LeaveBalance balance = leaveBalanceRepository.findByEmployee_EmpIDAndId_Year(empId, year)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy quỹ phép năm " + year + "!"));
 
-        if(balance.getPendingDays().add(requestDays).compareTo(balance.getTotalDays()) > 0) {
-            throw new BusinessException("Số ngày phép đang chờ duyệt vượt quá tổng số ngày phép!");
-        }
+        // Tính toán số ngày phép THỰC SỰ có thể dùng
+        BigDecimal totalUsedAndPending = balance.getUsedDays().add(balance.getPendingDays());
+        BigDecimal strictlyAvailableDays = balance.getTotalDays().subtract(totalUsedAndPending);
 
-        BigDecimal availableDays = balance.getTotalDays().subtract(balance.getUsedDays());
-        if (availableDays.compareTo(requestDays) < 0) {
+        if (strictlyAvailableDays.compareTo(requestDays) < 0) {
             throw new BusinessException("Số ngày phép còn lại không đủ để tạo đơn!");
         }
 
