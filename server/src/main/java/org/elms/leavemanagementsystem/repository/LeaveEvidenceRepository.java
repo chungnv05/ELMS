@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface LeaveEvidenceRepository extends JpaRepository<LeaveEvidence, Integer> {
     List<LeaveEvidence> findByLeaveRequest_RequestID(Integer requestId);
+
+
 }

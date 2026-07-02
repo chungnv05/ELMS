@@ -30,10 +30,10 @@ public class LeaveApprovalService {
     }
 
     @Transactional
-    public void processLeaveApproval(Integer approverId, LeaveApprovalRequest requestDto) {
+    public void processLeaveApproval(Integer approverId, LeaveApprovalRequest approvalRequest) {
 
         Employee approver = employeeService.getEmployeeById(approverId);
-        LeaveRequest leaveRequest = leaveRequestService.getLeaveRequestById(requestDto.getRequestId());
+        LeaveRequest leaveRequest = leaveRequestService.getLeaveRequestById(approvalRequest.getRequestId());
 
         if (leaveRequest.getStatus() != LeaveRequest.Status.PENDING) {
             throw new ConflictException("Đơn nghỉ phép đã được xử lý trước đó");
@@ -44,7 +44,7 @@ public class LeaveApprovalService {
         Integer requestYear =  leaveRequest.getStartDate().getYear();
 
         // Phân luồng xử lý: APPROVED hoặc REJECTED
-        if (requestDto.getAction() == ApprovalHistory.Action.APPROVED) {
+        if (approvalRequest.getAction() == ApprovalHistory.Action.APPROVED) {
             statusAfter = LeaveRequest.Status.APPROVED;
 
             leaveRequest.setStatus(statusAfter);
@@ -53,14 +53,14 @@ public class LeaveApprovalService {
             // Trừ vào ngày nghỉ trong năm
             leaveBalanceService.commitUsedDays(leaveRequest.getEmployee().getEmpID(), requestYear, leaveRequest.getTotalDays());
 
-        } else if (requestDto.getAction() == ApprovalHistory.Action.REJECTED) {
-            if (requestDto.getComment() == null || requestDto.getComment().trim().isEmpty()) {
+        } else if (approvalRequest.getAction() == ApprovalHistory.Action.REJECTED) {
+            if (approvalRequest.getComment() == null || approvalRequest.getComment().trim().isEmpty()) {
                 throw new BusinessException("Bắt buộc phải nhập lý do khi từ chối đơn nghỉ phép!");
             }
 
             statusAfter = LeaveRequest.Status.REJECTED;
             leaveRequest.setStatus(statusAfter);
-            leaveRequest.setRejectionReason(requestDto.getComment());
+            leaveRequest.setRejectionReason(approvalRequest.getComment());
 
             // Gọi Service quỹ phép để hoàn trả ngày nghỉ (Chỉ trừ đi ở Pending)
             leaveBalanceService.refundPendingDays(leaveRequest.getEmployee().getEmpID(), requestYear, leaveRequest.getTotalDays());
@@ -76,10 +76,10 @@ public class LeaveApprovalService {
         approvalHistoryService.logAction(
                 leaveRequest,
                 approver,
-                requestDto.getAction(),
+                approvalRequest.getAction(),
                 statusBefore,
                 statusAfter,
-                requestDto.getComment()
+                approvalRequest.getComment()
         );
 
         // Bổ sung chức năng thông báo email ở sau

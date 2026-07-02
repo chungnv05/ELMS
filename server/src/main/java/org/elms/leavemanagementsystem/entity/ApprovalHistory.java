@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class ApprovalHistory {
     public enum Action {
-        SUBMITTED, APPROVED, REJECTED, CANCELLED
+        SUBMITTED, APPROVED, REJECTED, CANCELLED, UPDATED
     }
 
     public enum Status {

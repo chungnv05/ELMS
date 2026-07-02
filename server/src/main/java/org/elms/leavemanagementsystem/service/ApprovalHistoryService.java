@@ -35,7 +35,7 @@ public class ApprovalHistoryService {
     }
 
     @Transactional
-    public void createFirstHistory(
+    public void createHistory(
             LeaveRequest request,
             Employee actor,
             ApprovalHistory.Action action,

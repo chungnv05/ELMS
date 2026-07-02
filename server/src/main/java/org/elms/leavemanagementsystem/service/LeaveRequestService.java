@@ -1,7 +1,9 @@
 package org.elms.leavemanagementsystem.service;
 
 import org.elms.leavemanagementsystem.dto.request.LeaveRequestForm;
+import org.elms.leavemanagementsystem.dto.request.UpdateLeaveRequestForm;
 import org.elms.leavemanagementsystem.dto.response.LeaveRequestDetailResponse;
+import org.elms.leavemanagementsystem.dto.response.LeaveRequestForUpdate;
 import org.elms.leavemanagementsystem.dto.response.LeaveRequestsResponse;
 import org.elms.leavemanagementsystem.entity.*;
 import org.elms.leavemanagementsystem.exception.BusinessException;
@@ -120,10 +122,10 @@ public class LeaveRequestService {
         LeaveRequest savedRequest = leaveRequestRepository.save(request);
 
         //  Xử lý File đính kèm
-        leaveEvidenceService.saveEvidence(form, savedRequest);
+        leaveEvidenceService.saveEvidence(form.getEvidenceFiles(), savedRequest);
 
         // Ghi vào ApprovalHistory
-        approvalHistoryService.createFirstHistory(
+        approvalHistoryService.createHistory(
                 savedRequest,
                 employee,
                 ApprovalHistory.Action.SUBMITTED,
@@ -190,6 +192,7 @@ public class LeaveRequestService {
                 .status(leaveRequest.getStatus().name())
                 .rejectionReason(leaveRequest.getRejectionReason())
                 .createdAt(leaveRequest.getCreatedAt())
+                .isOwner(isOwner)
                 .evidenceFiles(evidences.stream()
                         .map(e -> e.getFileName())
                         .collect(Collectors.toList()))
@@ -204,5 +207,149 @@ public class LeaveRequestService {
                 .build();
 
 
+    }
+
+    @Transactional
+    public void updateLeaveRequest(Integer requestId, UpdateLeaveRequestForm form, Integer currentEmpId) {
+        LeaveRequest leaveRequest = leaveRequestRepository.findById(requestId)
+                .orElseThrow(() -> new BusinessException("Không tìm thấy đơn nghỉ phép!"));
+
+        LeaveType type = leaveTypeService.getLeaveTypeById(form.getTypeId());
+        Employee employee = leaveRequest.getEmployee();
+
+
+        if (!employee.getEmpID().equals(currentEmpId)) {
+            throw new BusinessException("Không đủ quyền thực hiện thao tác!");
+        }
+
+
+        if (!leaveRequest.getStatus().equals(LeaveRequest.Status.PENDING)) {
+            throw new BusinessException("Đơn đã được xử lý, không thể chỉnh sửa!");
+        }
+
+
+        if (form.getStartDate().isAfter(form.getEndDate())) {
+            throw new BusinessException("Ngày bắt đầu không được lớn hơn ngày kết thúc!");
+        }
+
+
+        List<LeaveRequest> overlappingRequests = leaveRequestRepository.findOverlappingRequestsExcludingCurrent(
+                currentEmpId, requestId, form.getStartDate(), form.getEndDate());
+        if (!overlappingRequests.isEmpty()) {
+            throw new BusinessException("Bạn đã có đơn nghỉ phép khác trong khoảng thời gian này!");
+        }
+
+
+        BigDecimal actualRequestDays = DateUtils.calculateWorkDays(form.getStartDate(), form.getEndDate());
+        if (actualRequestDays.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Số ngày xin nghỉ không hợp lệ!");
+        }
+
+        if (Boolean.TRUE.equals(type.getRequiresEvidence())) {
+            int currentFileCount = leaveRequest.getEvidences() != null ? leaveRequest.getEvidences().size() : 0;
+
+            int deletedFileCount = form.getDeletedEvidenceIds() != null ? form.getDeletedEvidenceIds().size() : 0;
+
+            long newFileCount = 0;
+            if (form.getNewEvidenceFiles() != null) {
+                newFileCount = form.getNewEvidenceFiles().stream()
+                        .filter(file -> file != null && !file.isEmpty())
+                        .count();
+            }
+
+
+            long totalFilesAfterUpdate = currentFileCount - deletedFileCount + newFileCount;
+
+            if (totalFilesAfterUpdate <= 0) {
+                throw new BusinessException("Loại nghỉ phép '" + type.getName() + "' bắt buộc phải có giấy tờ minh chứng!");
+            }
+        }
+
+
+        int currentYear = Year.now().getValue();
+        BigDecimal originalDays = leaveRequest.getTotalDays();
+        BigDecimal difference = actualRequestDays.subtract(originalDays);
+
+
+        leaveBalanceService.updatePendingDays(currentEmpId, currentYear, difference);
+
+        if (form.getDeletedEvidenceIds() != null && !form.getDeletedEvidenceIds().isEmpty()) {
+            leaveEvidenceService.deleteEvidence(form.getDeletedEvidenceIds(), leaveRequest);
+        }
+
+
+        if (form.getNewEvidenceFiles() != null && !form.getNewEvidenceFiles().isEmpty()) {
+            leaveEvidenceService.saveEvidence(form.getNewEvidenceFiles(), leaveRequest);
+        }
+
+        leaveRequest.setLeaveType(type);
+        leaveRequest.setStartDate(form.getStartDate());
+        leaveRequest.setEndDate(form.getEndDate());
+        leaveRequest.setTotalDays(actualRequestDays);
+        leaveRequest.setReason(form.getReason());
+        leaveRequest.setUpdatedAt(LocalDateTime.now());
+
+
+        approvalHistoryService.createHistory(
+                leaveRequest,
+                employee,
+                ApprovalHistory.Action.UPDATED,
+                LeaveRequest.Status.PENDING,
+                "Cập nhật đơn nghỉ phép");
+    }
+
+    public LeaveRequestForUpdate getLeaveRequestForUpdate(Integer requestId, Integer currentEmpId) {
+        LeaveRequest leaveRequest = leaveRequestRepository.findByRequestID(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn nghỉ phép!"));
+
+        if (!leaveRequest.getEmployee().getEmpID().equals(currentEmpId)) {
+            throw new AccessDeniedException("Không đủ quyền để thực hiện thao tác!");
+        }
+
+        List<LeaveEvidence> evidences = leaveEvidenceRepository.findByLeaveRequest_RequestID(requestId);
+        LeaveType type = leaveTypeService.getLeaveTypeById(leaveRequest.getLeaveType().getTypeID());
+
+        return LeaveRequestForUpdate.builder()
+                .requestId(leaveRequest.getRequestID())
+                .requestCode(leaveRequest.getRequestCode())
+                .typeId(type.getTypeID())
+                .typeName(type.getName())
+                .startDate(leaveRequest.getStartDate())
+                .endDate(leaveRequest.getEndDate())
+                .totalDays(leaveRequest.getTotalDays())
+                .reason(leaveRequest.getReason())
+                .createdAt(leaveRequest.getCreatedAt())
+                .evidenceFileIds(evidences.stream()
+                        .map(LeaveEvidence::getEvidenceID)
+                        .collect(Collectors.toList()))
+                .build();
+    }
+
+    public List<LeaveRequestsResponse> getLeaveRequestsForEmployee(Integer empId, String statusString) {
+        LeaveRequest.Status statusEnum = null;
+
+        if (statusString != null && !statusString.equalsIgnoreCase("ALL") && !statusString.trim().isEmpty()) {
+            try {
+                statusEnum = LeaveRequest.Status.valueOf(statusString.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new BusinessException("Trạng thái đơn không hợp lệ!");
+            }
+        }
+
+        List<LeaveRequest> requests = leaveRequestRepository.findLeaveRequestsByEmployeeAndStatus(empId, statusEnum);
+
+        return requests.stream().map(request -> LeaveRequestsResponse.builder()
+                .requestId(request.getRequestID())
+                .requestCode(request.getRequestCode())
+                .employeeName(request.getEmployee().getFullName())
+                .leaveTypeName(request.getLeaveType().getName())
+                .startDate(request.getStartDate())
+                .endDate(request.getEndDate())
+                .totalDays(request.getTotalDays())
+                .reason(request.getReason())
+                .status(request.getStatus().name())
+                .createdAt(request.getCreatedAt())
+                .build()
+        ).toList();
     }
 }

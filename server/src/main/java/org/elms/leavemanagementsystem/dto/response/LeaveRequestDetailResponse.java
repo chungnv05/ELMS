@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+// Trả về chi tiết đơn nghỉ phép, bao gồm thông tin người tạo, thông tin đơn, danh sách file đính kèm và lịch sử phê duyệt
 @Data
 @Builder
 public class LeaveRequestDetailResponse {
@@ -28,8 +29,9 @@ public class LeaveRequestDetailResponse {
     private String rejectionReason;
     private LocalDateTime createdAt;
 
-    private List<String> evidenceFiles;
+    private boolean isOwner;
 
+    private List<String> evidenceFiles;
 
     private List<ApprovalHistoryResponse> approvalHistories;
 

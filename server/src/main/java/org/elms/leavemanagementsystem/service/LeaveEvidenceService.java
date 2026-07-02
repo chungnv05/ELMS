@@ -3,10 +3,12 @@ package org.elms.leavemanagementsystem.service;
 import org.elms.leavemanagementsystem.dto.request.LeaveRequestForm;
 import org.elms.leavemanagementsystem.entity.LeaveEvidence;
 import org.elms.leavemanagementsystem.entity.LeaveRequest;
+import org.elms.leavemanagementsystem.exception.BusinessException;
 import org.elms.leavemanagementsystem.exception.FileStorageException;
 import org.elms.leavemanagementsystem.repository.LeaveEvidenceRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -29,8 +31,8 @@ public class LeaveEvidenceService {
         this.leaveEvidenceRepository = leaveEvidenceRepository;
     }
 
-    public void saveEvidence(LeaveRequestForm form, LeaveRequest leaveRequest) {
-        if (form.getEvidenceFiles() == null || form.getEvidenceFiles().isEmpty()) return;
+    public void saveEvidence(List<MultipartFile> evidenceFiles, LeaveRequest leaveRequest) {
+        if (evidenceFiles == null || evidenceFiles.isEmpty()) return;
 
         // 1. Đảm bảo thư mục lưu trữ tồn tại
         Path uploadPath = Paths.get(UPLOAD_DIR).toAbsolutePath().normalize();
@@ -44,7 +46,7 @@ public class LeaveEvidenceService {
 
         List<LeaveEvidence> evidenceList = new ArrayList<>();
 
-        for (MultipartFile file : form.getEvidenceFiles()) {
+        for (MultipartFile file : evidenceFiles) {
             if (file.isEmpty()) continue;
 
             // 2. Tạo tên file duy nhất (UUID + Tên gốc)
@@ -72,6 +74,35 @@ public class LeaveEvidenceService {
 
         if (!evidenceList.isEmpty()) {
             leaveEvidenceRepository.saveAll(evidenceList);
+        }
+    }
+
+    @Transactional
+    public void deleteEvidence(List<Integer> evidenceIds, LeaveRequest leaveRequest) {
+        if (evidenceIds == null || evidenceIds.isEmpty()) return;
+
+
+        Path uploadPath = Paths.get(UPLOAD_DIR).toAbsolutePath().normalize();
+
+        for (Integer id : evidenceIds) {
+            leaveEvidenceRepository.findById(id).ifPresent(evidence -> {
+
+                // Check file có đúng là của đơn nghỉ phép đang xét
+                if (evidence.getLeaveRequest().getRequestID().equals(leaveRequest.getRequestID())) {
+
+                    try {
+                        Path filePath = uploadPath.resolve(evidence.getFilePath()).normalize();
+                        Files.deleteIfExists(filePath);
+
+                        leaveEvidenceRepository.delete(evidence);
+
+                    } catch (IOException e) {
+                        throw new FileStorageException("Lỗi hệ thống khi xóa file vật lý: " + evidence.getFileName(), e);
+                    }
+                } else {
+                    throw new BusinessException("Không có quyền xóa file này!");
+                }
+            });
         }
     }
 }

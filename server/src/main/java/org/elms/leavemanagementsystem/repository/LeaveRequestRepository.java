@@ -34,12 +34,28 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Inte
     @Query("SELECT lr FROM LeaveRequest lr " +
             "JOIN lr.employee e " +
             "JOIN e.department d " +
-            "WHERE d.manager.empID = :managerId " + // Dựa vào cấu trúc DB: Department có managerID
-            "AND (:status IS NULL OR lr.status = :status) " + // Nếu không truyền status thì lấy tất cả
+            "WHERE d.manager.empID = :managerId " +
+            "AND (:status IS NULL OR lr.status = :status) " +
             "ORDER BY lr.createdAt DESC")
     List<LeaveRequest> findRequestsForManager(@Param("managerId") Integer managerId,
                                               @Param("status") LeaveRequest.Status status);
 
     @EntityGraph(attributePaths = {"employee", "leaveType"})
     Optional<LeaveRequest> findByRequestID(Integer requestID);
+
+    @Query("SELECT r FROM LeaveRequest r WHERE r.employee.empID = :empId " +
+            "AND (:status IS NULL OR r.status = :status) " +
+            "ORDER BY r.createdAt DESC")
+    List<LeaveRequest> findLeaveRequestsByEmployeeAndStatus(
+            @Param("empId") Integer empId,
+            @Param("status") LeaveRequest.Status status);
+
+    @Query("SELECT lr FROM LeaveRequest lr WHERE lr.employee.empID = :empId " +
+            "AND lr.requestID <> :requestId " +
+            "AND lr.status NOT IN ('REJECTED', 'CANCELLED') " +
+            "AND (lr.startDate <= :endDate AND lr.endDate >= :startDate)")
+    List<LeaveRequest> findOverlappingRequestsExcludingCurrent(@Param("empId") Integer empId,
+                                                               @Param("requestId") Integer requestId,
+                                                               @Param("startDate") LocalDate startDate,
+                                                               @Param("endDate") LocalDate endDate);
 }

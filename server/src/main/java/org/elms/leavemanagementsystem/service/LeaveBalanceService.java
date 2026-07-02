@@ -1,5 +1,6 @@
 package org.elms.leavemanagementsystem.service;
 
+import org.elms.leavemanagementsystem.dto.response.LeaveBalanceReponse;
 import org.elms.leavemanagementsystem.exception.BusinessException;
 import org.springframework.stereotype.Service;
 import org.elms.leavemanagementsystem.entity.LeaveBalance;
@@ -59,5 +60,18 @@ public class LeaveBalanceService {
         balance.setPendingDays(balance.getPendingDays().subtract(daysToRefund));
 
         leaveBalanceRepository.save(balance);
+    }
+
+    public LeaveBalanceReponse getLeaveBalance(Integer empId, Integer year) {
+        LeaveBalance leaveBalance = leaveBalanceRepository.findByEmployee_EmpIDAndId_Year(empId, year)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy quỹ phép năm " + year + "!"));
+
+        return LeaveBalanceReponse.builder()
+                .year(leaveBalance.getId().getYear())
+                .totalDays(leaveBalance.getTotalDays())
+                .usedDays(leaveBalance.getUsedDays())
+                .pendingDays(leaveBalance.getPendingDays())
+                .build();
+
     }
 }

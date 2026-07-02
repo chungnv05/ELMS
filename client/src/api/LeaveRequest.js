@@ -24,5 +24,19 @@ export const getLeaveRequestDetail = async (requestId) => {
   return response.data;
 };
 
+export const getLeaveRequestForUpdate = async (requestId) => {
+  const response = await api.get(`/leaves/update/${requestId}`);
+  return response.data;
+};
+
+export const updateLeaveRequest = async (requestId, formData) => {
+  const response = await api.put(`/leaves/update/${requestId}`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data', 
+    },
+  });
+  return response.data;
+};
+
 
 
