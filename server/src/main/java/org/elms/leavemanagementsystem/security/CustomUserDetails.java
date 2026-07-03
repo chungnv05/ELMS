@@ -32,8 +32,6 @@ public class CustomUserDetails implements UserDetails {
         return employee.getEmail(); // Dùng email làm username đăng nhập
     }
 
-    // Các hàm dưới đây tạm thời return true để cho phép user đăng nhập
-    // Sau này có thể tùy biến dựa vào cột isActive của bạn
     @Override
     public boolean isAccountNonExpired() { return true; }
 

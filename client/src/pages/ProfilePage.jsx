@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import DashboardLayout from "../components/DashboardLayout";
-import { employeeMenu } from "../menus/Employee"; 
+import { employeeMenu } from "../menus/Employee";
+import { managerMenu } from "../menus/Manager";
+import { hrMenu } from "../menus/HR"; 
 import { getMyProfile } from "../api/Profile";
 import { useNavigate } from "react-router-dom";
 
@@ -24,8 +26,21 @@ export default function ProfilePage() {
     }
   };
 
+  const currentMenu = useMemo(() => {
+    const role = localStorage.getItem("role");
+    switch (role) {
+      case "ROLE_HR_ADMIN":
+        return hrMenu;
+      case "ROLE_MANAGER":
+        return managerMenu;
+      case "ROLE_EMPLOYEE":
+      default:
+        return employeeMenu;
+    }
+  }, []);
+
   return (
-    <DashboardLayout menuItems={employeeMenu} pageTitle="Hồ Sơ Cá Nhân">
+    <DashboardLayout menuItems={currentMenu} pageTitle="Hồ Sơ Cá Nhân">
       <div className="p-6 flex justify-center">
         {isLoading ? (
           <div className="flex justify-center items-center h-64 w-full bg-white rounded-3xl border border-slate-200 shadow-sm">

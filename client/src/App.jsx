@@ -6,6 +6,7 @@ import LeaveApprovalPage from "./pages/LeaveApprovalPage"
 import PersonalCalendar from "./pages/PersonalCalendar";
 import ProfilePage from "./pages/ProfilePage"
 import ChangePass from "./pages/ChangePass"
+import EmployeeManagement from "./pages/EmployeeManagement";
 
 // Component bảo vệ: Kiểm tra xem người dùng đã có Token chưa
 const ProtectedRoute = ({ children }) => {
@@ -74,6 +75,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <ChangePass />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/employees" 
+          element={
+            <ProtectedRoute>
+              <EmployeeManagement />
             </ProtectedRoute>
           } 
         />

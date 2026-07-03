@@ -3,6 +3,7 @@ package org.elms.leavemanagementsystem.service;
 import org.elms.leavemanagementsystem.dto.request.ChangePasswordRequest;
 import org.elms.leavemanagementsystem.dto.request.CreateAccountRequest;
 import org.elms.leavemanagementsystem.dto.response.CompanyStatsResponse;
+import org.elms.leavemanagementsystem.dto.response.EmployeeResponse;
 import org.elms.leavemanagementsystem.dto.response.UserProfileDetailResponse;
 import org.elms.leavemanagementsystem.entity.*;
 import org.elms.leavemanagementsystem.exception.BusinessException;
@@ -11,6 +12,7 @@ import org.elms.leavemanagementsystem.repository.DepartmentRepository;
 import org.elms.leavemanagementsystem.repository.EmployeeRepository;
 import org.elms.leavemanagementsystem.repository.LeaveBalanceRepository;
 import org.elms.leavemanagementsystem.repository.LeaveRequestRepository;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -19,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class EmployeeService {
@@ -56,6 +60,10 @@ public class EmployeeService {
 
         if (employeeRepository.existsByEmail(createAccountRequest.getEmail())) {
             throw new BusinessException("Email đã tồn tại!");
+        }
+
+        if (employeeRepository.existsByEmpCode(createAccountRequest.getEmpCode())) {
+            throw new BusinessException("Mã nhân viên đã tồn tại!");
         }
 
         Department department = departmentRepository.findById(createAccountRequest.getDepartmentID())
@@ -167,5 +175,32 @@ public class EmployeeService {
         // Mã hóa và lưu mật khẩu mới
         emp.setPassword(passwordEncoder.encode(request.getNewPassword()));
         employeeRepository.save(emp);
+    }
+
+    public List<EmployeeResponse> getAllEmployees() {
+        List<Employee> employees = employeeRepository.findAll(Sort.by(Sort.Direction.DESC, "empID"));
+
+        // Chuyển đổi từ Entity sang DTO
+        return employees.stream().map(emp -> EmployeeResponse.builder()
+                .empID(emp.getEmpID())
+                .empCode(emp.getEmpCode())
+                .fullName(emp.getFullName())
+                .email(emp.getEmail())
+                .phoneNumber(emp.getPhoneNumber())
+                .departmentName(emp.getDepartment() != null ? emp.getDepartment().getDepartmentName() : "")
+                .role(emp.getRole().name())
+                .isActive(emp.getIsActive())
+                .build()
+        ).collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void toggleEmployeeStatus(Integer empId) {
+        Employee employee = employeeRepository.findById(empId)
+                .orElseThrow(() -> new BusinessException("Không tìm thấy thông tin nhân viên với ID: " + empId));
+
+        employee.setIsActive(!employee.getIsActive());
+
+        employeeRepository.save(employee);
     }
 }

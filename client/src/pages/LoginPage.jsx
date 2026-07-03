@@ -18,8 +18,8 @@ export default function LoginPage() {
       localStorage.setItem("token", data.token);
       localStorage.setItem("role", data.role);
       navigate("/dashboard");
-    } catch {
-      setError("Email hoặc mật khẩu không đúng.");
+    } catch (err) {
+      setError(err.response?.data?.message);
     } finally {
       setLoading(false);
     }
