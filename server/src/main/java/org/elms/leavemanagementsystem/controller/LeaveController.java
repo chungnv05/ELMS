@@ -150,4 +150,22 @@ public class LeaveController {
 
         return ResponseEntity.ok(Collections.singletonMap("message", "Đã xóa đơn nghỉ phép thành công!"));
     }
+
+    // API lấy lịch theo tháng
+    @GetMapping("/personal-calendar")
+    public ResponseEntity<?> getMyCalendar(
+            @RequestParam int year,
+            @RequestParam int month,
+            Authentication authentication) {
+
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        Integer currentEmpId = userDetails.getEmployee().getEmpID();
+
+        if (currentEmpId == null) {
+            throw new ResourceNotFoundException("Không tìm thấy thông tin nhân viên!");
+        }
+
+        List<LeaveEventResponse> events = leaveRequestService.getMyCalendar(currentEmpId, year, month);
+        return ResponseEntity.ok(events);
+    }
 }

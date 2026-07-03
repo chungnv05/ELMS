@@ -72,13 +72,13 @@ export default function Navbar({ title, toggleSidebar }) {
                   onClick={() => { navigate("/profile"); setDropdownOpen(false); }} 
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 rounded-xl transition-all font-medium"
                 >
-                  <span>👤</span> Thông tin cá nhân
+                  <span></span> Thông tin cá nhân
                 </button>
                 <button 
                   onClick={() => { navigate("/change-password"); setDropdownOpen(false); }} 
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 rounded-xl transition-all font-medium"
                 >
-                  <span>🔒</span> Đổi mật khẩu
+                  <span></span> Đổi mật khẩu
                 </button>
                 
                 <div className="my-2 border-t border-slate-100"></div>
@@ -87,7 +87,7 @@ export default function Navbar({ title, toggleSidebar }) {
                   onClick={handleLogout} 
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 rounded-xl transition-all font-bold"
                 >
-                  <span>🚪</span> Đăng xuất
+                  <span></span> Đăng xuất
                 </button>
               </div>
             </div>

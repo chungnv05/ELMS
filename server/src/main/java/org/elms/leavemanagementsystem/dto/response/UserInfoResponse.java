@@ -6,7 +6,7 @@ import lombok.Data;
 // Trả về tên và mã NV
 @Data
 @Builder
-public class UserProfileResponse {
+public class UserInfoResponse {
     private String fullName;
     private String empCode;
 }

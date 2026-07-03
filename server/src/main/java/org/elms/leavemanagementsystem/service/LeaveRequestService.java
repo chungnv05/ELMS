@@ -2,6 +2,7 @@ package org.elms.leavemanagementsystem.service;
 
 import org.elms.leavemanagementsystem.dto.request.LeaveRequestForm;
 import org.elms.leavemanagementsystem.dto.request.UpdateLeaveRequestForm;
+import org.elms.leavemanagementsystem.dto.response.LeaveEventResponse;
 import org.elms.leavemanagementsystem.dto.response.LeaveRequestDetailResponse;
 import org.elms.leavemanagementsystem.dto.response.LeaveRequestForUpdate;
 import org.elms.leavemanagementsystem.dto.response.LeaveRequestsResponse;
@@ -22,6 +23,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Year;
+import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -383,5 +385,22 @@ public class LeaveRequestService {
 
 
 
+    }
+
+    public List<LeaveEventResponse> getMyCalendar(Integer currentEmpId, int year, int month) {
+        // Xác định ngày đầu tháng và ngày cuối tháng
+        YearMonth yearMonth = YearMonth.of(year, month);
+        LocalDate startOfMonth = yearMonth.atDay(1);
+        LocalDate endOfMonth = yearMonth.atEndOfMonth();
+
+        List<LeaveRequest> leaves = leaveRequestRepository.findLeavesForCalendar(currentEmpId, startOfMonth, endOfMonth);
+
+        return leaves.stream().map(l -> new LeaveEventResponse(
+                l.getRequestID(),
+                l.getStartDate(),
+                l.getEndDate(),
+                l.getLeaveType().getName(),
+                l.getStatus().name()
+        )).collect(Collectors.toList());
     }
 }

@@ -1,21 +1,24 @@
 package org.elms.leavemanagementsystem.service;
 
+import org.elms.leavemanagementsystem.dto.request.ChangePasswordRequest;
 import org.elms.leavemanagementsystem.dto.request.CreateAccountRequest;
-import org.elms.leavemanagementsystem.entity.Department;
-import org.elms.leavemanagementsystem.entity.Employee;
-import org.elms.leavemanagementsystem.entity.LeaveBalance;
-import org.elms.leavemanagementsystem.entity.LeaveBalanceId;
+import org.elms.leavemanagementsystem.dto.response.CompanyStatsResponse;
+import org.elms.leavemanagementsystem.dto.response.UserProfileDetailResponse;
+import org.elms.leavemanagementsystem.entity.*;
 import org.elms.leavemanagementsystem.exception.BusinessException;
 import org.elms.leavemanagementsystem.exception.ResourceNotFoundException;
 import org.elms.leavemanagementsystem.repository.DepartmentRepository;
 import org.elms.leavemanagementsystem.repository.EmployeeRepository;
 import org.elms.leavemanagementsystem.repository.LeaveBalanceRepository;
+import org.elms.leavemanagementsystem.repository.LeaveRequestRepository;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 
 @Service
 public class EmployeeService {
@@ -23,20 +26,20 @@ public class EmployeeService {
     private final DepartmentRepository departmentRepository;
     private final PasswordEncoder passwordEncoder;
     private final LeaveBalanceRepository leaveBalanceRepository;
+    private final LeaveRequestRepository leaveRequestRepository;
 
     public EmployeeService(EmployeeRepository employeeRepository,
                            DepartmentRepository departmentRepository,
                            PasswordEncoder passwordEncoder,
-                           LeaveBalanceRepository leaveBalanceRepository) {
+                           LeaveBalanceRepository leaveBalanceRepository,
+                           LeaveRequestRepository leaveRequestRepository) {
 
         this.employeeRepository = employeeRepository;
         this.departmentRepository = departmentRepository;
         this.passwordEncoder = passwordEncoder;
         this.leaveBalanceRepository = leaveBalanceRepository;
-
+        this.leaveRequestRepository = leaveRequestRepository;
     }
-
-
 
     public Employee getEmployeeById(Integer empId) {
         return employeeRepository.findById(empId)
@@ -100,5 +103,69 @@ public class EmployeeService {
         }
 
         return employee.getDepartment().getDepartmentID();
+    }
+
+    public CompanyStatsResponse getCompanyStats(Integer hrEmpId) {
+
+        Employee hr = getEmployeeById(hrEmpId);
+        if (hr.getRole() != Employee.Role.HR_ADMIN) {
+            throw new AccessDeniedException("Không đủ quyền thực hiện thao tác!");
+        }
+
+        LocalDate today = LocalDate.now();
+        YearMonth currentMonth = YearMonth.now();
+        LocalDate startOfMonth = currentMonth.atDay(1);
+        LocalDate endOfMonth = currentMonth.atEndOfMonth();
+
+
+        int totalEmployees = (int) employeeRepository.countByIsActive(true);
+        int totalDepartment = (int) departmentRepository.count();
+        int pendingRequests = leaveRequestRepository.countByStatus(LeaveRequest.Status.PENDING);
+        int onLeaveToday = leaveRequestRepository.countOnLeaveToday(today);
+        int requestsThisMonth = leaveRequestRepository.countRequestsThisMonth(startOfMonth, endOfMonth);
+
+
+        return CompanyStatsResponse.builder()
+                .totalEmployees(totalEmployees)
+                .totalDepartment(totalDepartment)
+                .pendingRequests(pendingRequests)
+                .onLeaveToday(onLeaveToday)
+                .requestsThisMonth(requestsThisMonth)
+                .build();
+    }
+
+    public UserProfileDetailResponse getMyProfile(Integer empId) {
+        Employee emp = employeeRepository.findById(empId)
+                .orElseThrow(() -> new BusinessException("Không tìm thấy thông tin tài khoản!"));
+
+        return UserProfileDetailResponse.builder()
+                .empCode(emp.getEmpCode())
+                .fullName(emp.getFullName())
+                .email(emp.getEmail())
+                .phoneNumber(emp.getPhoneNumber())
+                .address(emp.getAddress())
+                .role(emp.getRole().name())
+                .departmentName(emp.getDepartment() != null ? emp.getDepartment().getDepartmentName() : "Chưa cập nhật")
+                .hiredDate(emp.getHiredDate())
+                .build();
+    }
+
+    @Transactional
+    public void changePassword(Integer empId, ChangePasswordRequest request) {
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new BusinessException("Mật khẩu xác nhận không khớp!");
+        }
+
+        Employee emp = employeeRepository.findById(empId)
+                .orElseThrow(() -> new BusinessException("Không tìm thấy tài khoản!"));
+
+        // Kiểm tra mật khẩu cũ có đúng không
+        if (!passwordEncoder.matches(request.getCurrentPassword(), emp.getPassword())) {
+            throw new BusinessException("Mật khẩu hiện tại không chính xác!");
+        }
+
+        // Mã hóa và lưu mật khẩu mới
+        emp.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        employeeRepository.save(emp);
     }
 }

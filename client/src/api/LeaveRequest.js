@@ -43,5 +43,10 @@ export const deleteLeaveRequest = async (requestId) => {
   return response.data;
 };
 
+export const getMyCalendar = async (year, month) => {
+  const response = await api.get(`/leaves/personal-calendar?year=${year}&month=${month}`);
+  return response.data;
+};
+
 
 

@@ -3,6 +3,9 @@ import LoginPage from "./pages/LoginPage";
 import DashboardRouter from "./pages/DashboardRouter";
 import CreateLeavePage from "./pages/CreateLeavePage";
 import LeaveApprovalPage from "./pages/LeaveApprovalPage"
+import PersonalCalendar from "./pages/PersonalCalendar";
+import ProfilePage from "./pages/ProfilePage"
+import ChangePass from "./pages/ChangePass"
 
 // Component bảo vệ: Kiểm tra xem người dùng đã có Token chưa
 const ProtectedRoute = ({ children }) => {
@@ -47,6 +50,30 @@ export default function App() {
           element={
             <ProtectedRoute>
               <LeaveApprovalPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/personal-calendar" 
+          element={
+            <ProtectedRoute>
+              <PersonalCalendar />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/profile" 
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/change-password" 
+          element={
+            <ProtectedRoute>
+              <ChangePass />
             </ProtectedRoute>
           } 
         />

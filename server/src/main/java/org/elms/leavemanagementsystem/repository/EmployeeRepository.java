@@ -16,6 +16,10 @@ public interface EmployeeRepository extends JpaRepository<Employee, Integer> {
     boolean existsByEmail(String email);
     boolean existsByEmpCode(String empCode);
 
+    long countByIsActive(Boolean isActive);
+
     // Tìm danh sách nhân viên theo phòng ban
     List<Employee> findByDepartment_DepartmentID(Integer departmentId);
+
+
 }
