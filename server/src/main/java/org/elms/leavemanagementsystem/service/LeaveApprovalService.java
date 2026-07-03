@@ -8,6 +8,7 @@ import org.elms.leavemanagementsystem.exception.BusinessException;
 import org.elms.leavemanagementsystem.exception.ConflictException;
 import org.elms.leavemanagementsystem.repository.LeaveRequestRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +35,10 @@ public class LeaveApprovalService {
 
         Employee approver = employeeService.getEmployeeById(approverId);
         LeaveRequest leaveRequest = leaveRequestService.getLeaveRequestById(approvalRequest.getRequestId());
+
+        if (approver.getRole() != Employee.Role.MANAGER) {
+            throw new AccessDeniedException("Không đủ quyền thực hiện thao tác!");
+        }
 
         if (leaveRequest.getStatus() != LeaveRequest.Status.PENDING) {
             throw new ConflictException("Đơn nghỉ phép đã được xử lý trước đó");

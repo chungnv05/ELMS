@@ -19,6 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.swing.plaf.PanelUI;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.time.temporal.ChronoUnit;
@@ -219,7 +220,7 @@ public class LeaveRequestService {
 
 
         if (!employee.getEmpID().equals(currentEmpId)) {
-            throw new BusinessException("Không đủ quyền thực hiện thao tác!");
+            throw new AccessDeniedException("Không đủ quyền thực hiện thao tác!");
         }
 
 
@@ -351,5 +352,36 @@ public class LeaveRequestService {
                 .createdAt(request.getCreatedAt())
                 .build()
         ).toList();
+    }
+
+    @Transactional
+    public void deleteLeaveRequest(Integer requestId, Integer currentEmpId) {
+        LeaveRequest leaveRequest = leaveRequestRepository.findByRequestID(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn nghỉ phép!"));
+
+        if (!leaveRequest.getEmployee().getEmpID().equals(currentEmpId)) {
+            throw new AccessDeniedException("Không đủ quyền để thực hiện thao tác!");
+        }
+
+        if (!leaveRequest.getStatus().equals(LeaveRequest.Status.PENDING)) {
+            throw new BusinessException("Đơn đã được xử lý, không thể xóa!");
+        }
+
+        int year = leaveRequest.getStartDate().getYear();
+
+        leaveBalanceService.refundPendingDays(currentEmpId, year, leaveRequest.getTotalDays());
+
+        if (leaveRequest.getEvidences() != null && !leaveRequest.getEvidences().isEmpty()) {
+            List<Integer> evidenceIds = leaveRequest.getEvidences().stream()
+                    .map(LeaveEvidence::getEvidenceID)
+                    .collect(Collectors.toList());
+
+            leaveEvidenceService.deleteEvidence(evidenceIds, leaveRequest);
+        }
+
+        leaveRequestRepository.delete(leaveRequest);
+
+
+
     }
 }

@@ -38,5 +38,10 @@ export const updateLeaveRequest = async (requestId, formData) => {
   return response.data;
 };
 
+export const deleteLeaveRequest = async (requestId) => {
+  const response = await api.delete(`/leaves/delete/${requestId}`);
+  return response.data;
+};
+
 
 

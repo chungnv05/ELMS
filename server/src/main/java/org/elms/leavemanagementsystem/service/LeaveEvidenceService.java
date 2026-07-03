@@ -94,6 +94,7 @@ public class LeaveEvidenceService {
                         Path filePath = uploadPath.resolve(evidence.getFilePath()).normalize();
                         Files.deleteIfExists(filePath);
 
+                        leaveRequest.getEvidences().remove(evidence);
                         leaveEvidenceRepository.delete(evidence);
 
                     } catch (IOException e) {

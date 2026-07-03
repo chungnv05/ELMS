@@ -5,7 +5,6 @@ import org.elms.leavemanagementsystem.dto.request.LeaveRequestForm;
 import org.elms.leavemanagementsystem.dto.request.UpdateLeaveRequestForm;
 import org.elms.leavemanagementsystem.dto.response.*;
 import org.elms.leavemanagementsystem.entity.Employee;
-import org.elms.leavemanagementsystem.entity.LeaveType;
 import org.elms.leavemanagementsystem.exception.ResourceNotFoundException;
 import org.elms.leavemanagementsystem.security.CustomUserDetails;
 import org.elms.leavemanagementsystem.service.LeaveBalanceService;
@@ -17,10 +16,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.time.Year;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/leaves")
@@ -80,6 +78,7 @@ public class LeaveController {
         return ResponseEntity.ok(detailResponse);
     }
 
+    // API lấy thông tin đơn để cập nhật
     @GetMapping("/update/{requestId}")
     public ResponseEntity<?> getLeaveRequestForUpdate(@PathVariable Integer requestId, Authentication authentication) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
@@ -93,6 +92,7 @@ public class LeaveController {
         return ResponseEntity.ok(leaveRequestForUpdateesponse);
     }
 
+    // API cập nhật đơn
     @PutMapping(value = "/update/{requestId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> updateLeaveRequest(@PathVariable Integer requestId, @Valid @ModelAttribute UpdateLeaveRequestForm form, Authentication authentication) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
@@ -107,6 +107,7 @@ public class LeaveController {
         return ResponseEntity.ok().body("Cập nhật đơn nghỉ phép thành công!");
     }
 
+    // API lấy quỹ nghỉ
     @GetMapping("/balance")
     public ResponseEntity<?> getLeaveBalance(Authentication authentication) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
@@ -122,6 +123,7 @@ public class LeaveController {
         return ResponseEntity.ok(leaveBalanceResponse);
     }
 
+    // API lấy list các đơn ở mọi trạng thái
     @GetMapping("/list")
     public ResponseEntity<?> getLeaveList(@RequestParam(required = false, defaultValue = "ALL") String status, Authentication authentication) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
@@ -133,5 +135,19 @@ public class LeaveController {
 
         List<LeaveRequestsResponse> leaveRequestsResponses = leaveRequestService.getLeaveRequestsForEmployee(currentEmp.getEmpID(), status);
         return ResponseEntity.ok(leaveRequestsResponses);
+    }
+
+    // API xóa đơn
+    @DeleteMapping("/delete/{requestId}")
+    public ResponseEntity<?> deleteLeaveRequest(
+            @PathVariable Integer requestId,
+            Authentication authentication) {
+
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        Integer currentEmpId = userDetails.getEmployee().getEmpID();
+
+        leaveRequestService.deleteLeaveRequest(requestId, currentEmpId);
+
+        return ResponseEntity.ok(Collections.singletonMap("message", "Đã xóa đơn nghỉ phép thành công!"));
     }
 }

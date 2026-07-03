@@ -55,19 +55,19 @@ const LeaveDetailModal = ({ isOpen, onClose, data, onRefreshList }) => {
 
               <div className="grid grid-cols-2 gap-8">
                 <div>
-                   <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Loại nghỉ phép</p>
+                   <p className="text-xs font-semibold text-slate-800 uppercase tracking-wider mb-2">Loại nghỉ phép</p>
                    <p className="text-lg font-bold text-slate-800">{leaveData.leaveTypeName}</p>
                 </div>
                 <div>
-                   <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Tổng thời gian</p>
+                   <p className="text-xs font-semibold text-slate-800 uppercase tracking-wider mb-2">Tổng thời gian</p>
                    <p className="text-lg font-bold text-indigo-600">{leaveData.totalDays} ngày</p>
                 </div>
                 <div className="col-span-2">
-                   <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Thời gian nghỉ</p>
+                   <p className="text-xs font-semibold text-slate-800 uppercase tracking-wider mb-2">Thời gian nghỉ</p>
                    <p className="text-lg font-semibold text-slate-700">{leaveData.startDate} đến {leaveData.endDate}</p>
                 </div>
                 <div className="col-span-2">
-                   <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Lý do</p>
+                   <p className="text-xs font-semibold text-slate-800 uppercase tracking-wider mb-2">Lý do</p>
                    <p className="text-base text-slate-600 leading-relaxed bg-slate-50 p-5 rounded-xl border border-slate-100 italic">"{leaveData.reason}"</p>
                 </div>
               </div>
@@ -75,7 +75,7 @@ const LeaveDetailModal = ({ isOpen, onClose, data, onRefreshList }) => {
 
             <div className="space-y-10 border-l border-slate-100 pl-12">
               <section>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Tài liệu đính kèm</p>
+                <p className="text-xs font-semibold text-slate-800 uppercase tracking-wider mb-4">Tài liệu đính kèm</p>
                 {leaveData.evidenceFiles?.length > 0 ? (
                   leaveData.evidenceFiles.map((f, i) => (
                     <button 
@@ -83,7 +83,7 @@ const LeaveDetailModal = ({ isOpen, onClose, data, onRefreshList }) => {
                       onClick={() => handleDownload(f)}
                       className="block w-full p-3 mb-2 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-semibold hover:bg-indigo-100 transition text-left"
                     >
-                      Tải minh chứng {i + 1}
+                      Minh chứng {i + 1}
                     </button>
                   ))
                 ) : <p className="text-sm text-slate-400 italic">Không có tài liệu</p>}
@@ -121,7 +121,7 @@ const LeaveDetailModal = ({ isOpen, onClose, data, onRefreshList }) => {
                 Chỉnh sửa đơn
               </button>
             )}
-            <button onClick={onClose} className="px-8 py-3 bg-slate-900 text-white rounded-xl font-semibold hover:bg-slate-800 transition">Đóng lại</button>
+            <button onClick={onClose} className="px-8 py-3 bg-slate-900 text-white rounded-xl font-semibold hover:bg-slate-800 transition">Đóng</button>
           </div>
         </div>
       </div>
