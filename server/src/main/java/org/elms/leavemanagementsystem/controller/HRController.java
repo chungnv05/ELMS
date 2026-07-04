@@ -16,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Collections;
 import java.util.List;
@@ -115,4 +116,23 @@ public class HRController {
 
     }
 
+    @PostMapping("/employees/import")
+    public ResponseEntity<?> importEmployees(@RequestParam("file") MultipartFile file, Authentication authentication) {
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        Employee currentEmp = userDetails.getEmployee();
+
+        if (currentEmp == null) {
+            throw new ResourceNotFoundException("Không tìm thấy thông tin nhân viên!");
+        }
+
+        if (currentEmp.getRole() != Employee.Role.HR_ADMIN) {
+            throw new AccessDeniedException("Không đủ quyền truy cập!");
+        }
+        if (!file.getOriginalFilename().endsWith(".xlsx")) {
+            return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Vui lòng upload file Excel định dạng .xlsx"));
+        }
+
+        employeeService.importEmployeeFromExcel(file);
+        return ResponseEntity.ok(Collections.singletonMap("message", "Import dữ liệu nhân viên thành công!"));
+    }
 }

@@ -212,7 +212,7 @@ export default function CreateEmployeeModal({ onClose, onRefresh, showToast }) {
         </div>
       </div>
 
-      {isImportModalOpen && <ImportEmployeeModal onClose={() => setIsImportModalOpen(false)} onRefresh={onRefresh} />}
+      {isImportModalOpen && <ImportEmployeeModal onClose={() => setIsImportModalOpen(false)} onRefresh={onRefresh} showToast={showToast} />}
     </>
   );
 }

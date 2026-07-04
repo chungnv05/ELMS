@@ -25,3 +25,15 @@ export const getDepartments = async () => {
   const response = await api.get('hr/departments');
   return response.data;
 };
+
+export const importEmployeesExcel = async (file) => {
+  const formData = new FormData();
+  formData.append('file', file); 
+
+  const response = await api.post('/hr/employees/import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  });
+  return response.data;
+};
