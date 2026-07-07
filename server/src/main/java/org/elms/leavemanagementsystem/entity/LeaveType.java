@@ -14,6 +14,12 @@ import java.util.List;
 @Builder
 public class LeaveType {
 
+    public enum Status {
+        PENDING,
+        APPROVED,
+        REJECTED
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "typeID")
@@ -33,6 +39,10 @@ public class LeaveType {
 
     @Column(name = "isActive", nullable = false)
     private Boolean isActive = true;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status")
+    private Status status;
 
     // Quan hệ ngược: 1 loại phép áp dụng cho nhiều đơn
     @OneToMany(mappedBy = "leaveType", fetch = FetchType.LAZY)

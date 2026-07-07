@@ -4,7 +4,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.elms.leavemanagementsystem.dto.request.ChangePasswordRequest;
 import org.elms.leavemanagementsystem.security.CustomUserDetails;
-import org.elms.leavemanagementsystem.service.EmployeeService;
+import org.elms.leavemanagementsystem.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -16,12 +16,12 @@ import java.util.Collections;
 @RequiredArgsConstructor
 public class ProfileController {
 
-    private final EmployeeService employeeService;
+    private final UserService employeeService;
 
     @GetMapping
     public ResponseEntity<?> getMyProfile(Authentication authentication) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        return ResponseEntity.ok(employeeService.getMyProfile(userDetails.getEmployee().getEmpID()));
+        return ResponseEntity.ok(employeeService.getProfile(userDetails.getEmployee().getEmpID()));
     }
 
     @PutMapping("/change-password")

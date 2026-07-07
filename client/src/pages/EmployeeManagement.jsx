@@ -179,7 +179,6 @@ export default function EmployeeManagement() {
                     <div className="flex flex-col items-center justify-center h-full w-full bg-slate-50/50 border border-slate-200 border-dashed rounded-2xl">
                        <svg className="w-12 h-12 text-slate-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                        <p className="text-slate-500 font-medium text-base">Không tìm thấy nhân viên nào phù hợp.</p>
-                       <p className="text-slate-400 text-sm mt-1">Hãy thử tìm kiếm với từ khóa khác.</p>
                     </div>
                   </td>
                 </tr>
@@ -200,11 +199,11 @@ export default function EmployeeManagement() {
                     
                     <td className="px-6 py-4 text-slate-600">
                       <p>{emp.email}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">{emp.phoneNumber || "Chưa có SĐT"}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{emp.phoneNumber || "Chưa có thông tin SĐT"}</p>
                     </td>
                     
                     <td className="px-6 py-4 font-medium text-slate-700">
-                      {emp.departmentName || "Chưa phân bổ"}
+                      {emp.departmentName || "Chưa có"}
                     </td>
                     
                     <td className="px-6 py-4 text-center">
@@ -225,14 +224,7 @@ export default function EmployeeManagement() {
                     
                     <td className="px-6 py-4 text-center">
                       <div className="flex items-center justify-center gap-2">
-                        {/* Nút Xem chi tiết */}
-                        <button 
-                          onClick={() => alert("Chức năng xem chi tiết sẽ được phát triển sau!")}
-                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition" 
-                          title="Xem chi tiết"
-                        >
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                        </button>
+                        
                         
                         {/* Nút Khóa / Mở khóa có gọi confirmToggle */}
                         <button 

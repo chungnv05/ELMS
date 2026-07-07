@@ -9,4 +9,10 @@ import lombok.Data;
 public class LeaveTypeResponse {
     private Integer typeId;
     private String name;
+    private Boolean isPaid;
+    private Boolean requiresEvidence;
+    private Integer defaultDays;
+    private Boolean isActive;
+    private String status;
+
 }

@@ -2,11 +2,9 @@ package org.elms.leavemanagementsystem.service;
 
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.elms.leavemanagementsystem.dto.request.ChangePasswordRequest;
 import org.elms.leavemanagementsystem.dto.request.CreateAccountRequest;
 import org.elms.leavemanagementsystem.dto.response.CompanyStatsResponse;
 import org.elms.leavemanagementsystem.dto.response.EmployeeResponse;
-import org.elms.leavemanagementsystem.dto.response.UserProfileDetailResponse;
 import org.elms.leavemanagementsystem.entity.*;
 import org.elms.leavemanagementsystem.exception.BusinessException;
 import org.elms.leavemanagementsystem.exception.ResourceNotFoundException;
@@ -31,19 +29,18 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-public class EmployeeService {
+public class HRService {
     private final EmployeeRepository employeeRepository;
     private final DepartmentRepository departmentRepository;
     private final PasswordEncoder passwordEncoder;
     private final LeaveBalanceRepository leaveBalanceRepository;
     private final LeaveRequestRepository leaveRequestRepository;
 
-    public EmployeeService(EmployeeRepository employeeRepository,
-                           DepartmentRepository departmentRepository,
-                           PasswordEncoder passwordEncoder,
-                           LeaveBalanceRepository leaveBalanceRepository,
-                           LeaveRequestRepository leaveRequestRepository) {
-
+    public HRService(EmployeeRepository employeeRepository,
+                     DepartmentRepository departmentRepository,
+                     PasswordEncoder passwordEncoder,
+                     LeaveBalanceRepository leaveBalanceRepository,
+                     LeaveRequestRepository leaveRequestRepository) {
         this.employeeRepository = employeeRepository;
         this.departmentRepository = departmentRepository;
         this.passwordEncoder = passwordEncoder;
@@ -51,13 +48,26 @@ public class EmployeeService {
         this.leaveRequestRepository = leaveRequestRepository;
     }
 
-    public Employee getEmployeeById(Integer empId) {
-        return employeeRepository.findById(empId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy nhân viên hợp lệ"));
+    public List<EmployeeResponse> getAllEmployees() {
+        List<Employee> employees = employeeRepository.findAll(Sort.by(Sort.Direction.DESC, "empID"));
+
+        // Chuyển đổi từ Entity sang DTO
+        return employees.stream().map(emp -> EmployeeResponse.builder()
+                .empID(emp.getEmpID())
+                .empCode(emp.getEmpCode())
+                .fullName(emp.getFullName())
+                .email(emp.getEmail())
+                .phoneNumber(emp.getPhoneNumber())
+                .departmentName(emp.getDepartment() != null ? emp.getDepartment().getDepartmentName() : "")
+                .role(emp.getRole().name())
+                .isActive(emp.getIsActive())
+                .build()
+        ).collect(Collectors.toList());
     }
 
     public void createEmployeeAccount(Integer empId, CreateAccountRequest createAccountRequest) {
-        Employee hr = getEmployeeById(empId);
+        Employee hr =  employeeRepository.findById(empId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy nhân viên hợp lệ"));
 
         if (hr.getRole() != Employee.Role.HR_ADMIN) {
             throw new AccessDeniedException("Không đủ quyền thực hiện thao tác!");
@@ -105,23 +115,11 @@ public class EmployeeService {
         leaveBalanceRepository.save(leaveBalance);
     }
 
-    public Integer getDepartmentOfEmployee(Integer empId) {
-
-        Employee employee = employeeRepository.findById(empId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy nhân viên hợp lệ (ID: " + empId + ")"));
-
-        // 3. Xử lý an toàn trường hợp Nhân viên chưa có phòng ban
-        if (employee.getDepartment() == null) {
-            System.out.println("=> Nhân viên này chưa được gán phòng ban nào!");
-            return null;
-        }
-
-        return employee.getDepartment().getDepartmentID();
-    }
-
     public CompanyStatsResponse getCompanyStats(Integer hrEmpId) {
 
-        Employee hr = getEmployeeById(hrEmpId);
+        Employee hr = employeeRepository.findById(hrEmpId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy nhân viên hợp lệ"));
+
         if (hr.getRole() != Employee.Role.HR_ADMIN) {
             throw new AccessDeniedException("Không đủ quyền thực hiện thao tác!");
         }
@@ -146,58 +144,6 @@ public class EmployeeService {
                 .onLeaveToday(onLeaveToday)
                 .requestsThisMonth(requestsThisMonth)
                 .build();
-    }
-
-    public UserProfileDetailResponse getMyProfile(Integer empId) {
-        Employee emp = employeeRepository.findById(empId)
-                .orElseThrow(() -> new BusinessException("Không tìm thấy thông tin tài khoản!"));
-
-        return UserProfileDetailResponse.builder()
-                .empCode(emp.getEmpCode())
-                .fullName(emp.getFullName())
-                .email(emp.getEmail())
-                .phoneNumber(emp.getPhoneNumber())
-                .address(emp.getAddress())
-                .role(emp.getRole().name())
-                .departmentName(emp.getDepartment() != null ? emp.getDepartment().getDepartmentName() : "Chưa cập nhật")
-                .hiredDate(emp.getHiredDate())
-                .build();
-    }
-
-    @Transactional
-    public void changePassword(Integer empId, ChangePasswordRequest request) {
-        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
-            throw new BusinessException("Mật khẩu xác nhận không khớp!");
-        }
-
-        Employee emp = employeeRepository.findById(empId)
-                .orElseThrow(() -> new BusinessException("Không tìm thấy tài khoản!"));
-
-        // Kiểm tra mật khẩu cũ có đúng không
-        if (!passwordEncoder.matches(request.getCurrentPassword(), emp.getPassword())) {
-            throw new BusinessException("Mật khẩu hiện tại không chính xác!");
-        }
-
-        // Mã hóa và lưu mật khẩu mới
-        emp.setPassword(passwordEncoder.encode(request.getNewPassword()));
-        employeeRepository.save(emp);
-    }
-
-    public List<EmployeeResponse> getAllEmployees() {
-        List<Employee> employees = employeeRepository.findAll(Sort.by(Sort.Direction.DESC, "empID"));
-
-        // Chuyển đổi từ Entity sang DTO
-        return employees.stream().map(emp -> EmployeeResponse.builder()
-                .empID(emp.getEmpID())
-                .empCode(emp.getEmpCode())
-                .fullName(emp.getFullName())
-                .email(emp.getEmail())
-                .phoneNumber(emp.getPhoneNumber())
-                .departmentName(emp.getDepartment() != null ? emp.getDepartment().getDepartmentName() : "")
-                .role(emp.getRole().name())
-                .isActive(emp.getIsActive())
-                .build()
-        ).collect(Collectors.toList());
     }
 
     @Transactional
@@ -287,19 +233,19 @@ public class EmployeeService {
     ) {
 
         if (empCode.isBlank()) {
-            throw new BusinessException("Mã nhân viên không được để trống!");
+            throw new BusinessException("Mã nhân viên hàng " + rowNumber + " không được để trống!");
         }
 
         if (fullName.isBlank()) {
-            throw new BusinessException("Họ tên không được để trống!");
+            throw new BusinessException("Tên đầy đủ hàng " + rowNumber + " không được để trống!");
         }
 
         if (email.isBlank()) {
-            throw new BusinessException("Email không được để trống!");
+            throw new BusinessException("Email hàng " + rowNumber + " không được để trống!");
         }
 
         if (password.isBlank()) {
-            throw new BusinessException("Mật khẩu không được để trống!");
+            throw new BusinessException("Mật khẩu hàng " + rowNumber + " không được để trống!");
         }
     }
 
@@ -310,11 +256,11 @@ public class EmployeeService {
     ) {
 
         if (employeeRepository.existsByEmpCode(empCode)) {
-            throw new BusinessException("Mã nhân viên đã tồn tại!");
+            throw new BusinessException("Mã nhân viên hàng " + rowNumber + " đã tồn tại!");
         }
 
         if (employeeRepository.existsByEmail(email)) {
-            throw new BusinessException("Email đã tồn tại!");
+            throw new BusinessException("Email hàng " + rowNumber + " đã tồn tại!");
         }
     }
 
@@ -328,7 +274,7 @@ public class EmployeeService {
             return Employee.Role.valueOf(role.trim().toUpperCase());
         } catch (IllegalArgumentException ex) {
             throw new BusinessException(
-                    "Vị trí không hợp lệ!"
+                    "Nhân viên ở hàng " + rowNumber + " có vị trí không hợp lệ!"
             );
         }
     }
@@ -341,13 +287,13 @@ public class EmployeeService {
 
         try {
             Integer departmentID = Integer.parseInt(deptId.trim());
-            return departmentRepository.findById(departmentID)
+            return departmentRepository.findByDepartmentIDAndIsActive(departmentID, true)
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            "Không tìm thấy phòng ban hợp lệ!"
+                            "Không tìm thấy phòng ban hợp lệ cho nhân viên ở hàng " + rowNumber
                     ));
         } catch (NumberFormatException ex) {
             throw new BusinessException(
-                    "Phòng ban không hợp lệ!"
+                    "Mã phòng ban ở hàng " + rowNumber + " không hợp lệ!"
             );
         }
     }
@@ -365,7 +311,7 @@ public class EmployeeService {
             return LocalDate.parse(hiredDate);
         } catch (DateTimeParseException ex) {
             throw new BusinessException(
-                    "Định dạng ngày không hợp lệ!"
+                    "Định dạng ngày ở hàng " + rowNumber + " không hợp lệ!"
             );
         }
     }

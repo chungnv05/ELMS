@@ -15,6 +15,12 @@ import java.util.List;
 @Builder
 public class Department {
 
+    public enum ApprovalStatus {
+        PENDING,
+        APPROVED,
+        REJECTED
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "departmentID")
@@ -28,6 +34,13 @@ public class Department {
 
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
+
+    @Column(name = "is_active")
+    private Boolean isActive;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "approval_status")
+    private ApprovalStatus approvalStatus;
 
     // Quan hệ quản lý bởi 1 trưởng phòng
     @ManyToOne(fetch = FetchType.LAZY)

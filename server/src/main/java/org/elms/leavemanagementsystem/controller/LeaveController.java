@@ -34,7 +34,7 @@ public class LeaveController {
         this.leaveBalanceService = leaveBalanceService;
     }
 
-    // API lấy danh sách loại nghỉ phép
+    // API lấy danh sách loại nghỉ phép đang hoạt động
     @GetMapping("/types/active")
     public ResponseEntity<List<LeaveTypeResponse>> getLeaveTypes() {
         return ResponseEntity.ok(leaveTypeService.getActiveLeaveTypes());
@@ -153,7 +153,7 @@ public class LeaveController {
 
     // API lấy lịch theo tháng
     @GetMapping("/personal-calendar")
-    public ResponseEntity<?> getMyCalendar(
+    public ResponseEntity<?> getUserCalendar(
             @RequestParam int year,
             @RequestParam int month,
             Authentication authentication) {
@@ -165,7 +165,9 @@ public class LeaveController {
             throw new ResourceNotFoundException("Không tìm thấy thông tin nhân viên!");
         }
 
-        List<LeaveEventResponse> events = leaveRequestService.getMyCalendar(currentEmpId, year, month);
+        List<LeaveEventResponse> events = leaveRequestService.getUserCalendar(currentEmpId, year, month);
         return ResponseEntity.ok(events);
     }
+
+
 }

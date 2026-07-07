@@ -51,7 +51,6 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Inte
             @Param("empId") Integer empId,
             @Param("status") LeaveRequest.Status status);
 
-
     // Tìm đơn trùng lịch trừ đơn đang xét
     @Query("SELECT lr FROM LeaveRequest lr WHERE lr.employee.empID = :empId " +
             "AND lr.requestID <> :requestId " +
@@ -82,4 +81,21 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Inte
     @Query("SELECT COUNT(l) FROM LeaveRequest l WHERE l.startDate <= :endOfMonth " +
             "AND l.endDate >= :startOfMonth")
     int countRequestsThisMonth(@Param("startOfMonth") LocalDate startOfMonth, @Param("endOfMonth") LocalDate endOfMonth);
+
+    // Đếm số đơn đang pending trong tháng của phòng ban
+    @Query("SELECT COUNT(l) FROM LeaveRequest l WHERE l.employee.department.departmentID = :departmentId AND l.status = 'PENDING'")
+    long countPendingRequestsByDepartment(@Param("departmentId") Integer departmentId);
+
+    // Đếm số lượng nhân viên đang nghỉ hôm nay của phòng ban
+    @Query("SELECT COUNT(DISTINCT l.employee) FROM LeaveRequest l WHERE l.employee.department.departmentID = :departmentId AND l.status = 'APPROVED' AND CURRENT_DATE BETWEEN l.startDate AND l.endDate")
+    long countEmployeesOnLeaveTodayByDepartment(@Param("departmentId") Integer departmentId);
+
+    // Lấy các đơn nghỉ phép đã được duyệt trong tháng của phòng ban
+    @Query("SELECT l FROM LeaveRequest l WHERE l.employee.department.departmentID = :deptId " +
+            "AND l.status = 'APPROVED' " +
+            "AND l.startDate <= :endOfMonth AND l.endDate >= :startOfMonth")
+    List<LeaveRequest> findApprovedLeavesForMonth(
+            @Param("deptId") Integer deptId,
+            @Param("startOfMonth") LocalDate startOfMonth,
+            @Param("endOfMonth") LocalDate endOfMonth);
 }

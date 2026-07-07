@@ -16,7 +16,7 @@ import java.util.List;
 public class Employee {
 
     public enum Role {
-        EMPLOYEE, MANAGER, HR_ADMIN
+        EMPLOYEE, MANAGER, HR_ADMIN, HIGH_LEVEL_MANAGER
     }
 
     @Id

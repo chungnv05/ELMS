@@ -19,11 +19,11 @@ public class LeaveApprovalService {
     @Autowired
     private LeaveRequestRepository leaveRequestRepository;
     private final LeaveRequestService leaveRequestService;
-    private final EmployeeService employeeService;
+    private final UserService employeeService;
     private final LeaveBalanceService leaveBalanceService;
     private final ApprovalHistoryService approvalHistoryService;
 
-    public LeaveApprovalService(LeaveRequestService leaveRequestService, EmployeeService employeeService, LeaveBalanceService leaveBalanceService, ApprovalHistoryService approvalHistoryService) {
+    public LeaveApprovalService(LeaveRequestService leaveRequestService, UserService employeeService, LeaveBalanceService leaveBalanceService, ApprovalHistoryService approvalHistoryService) {
         this.leaveRequestService = leaveRequestService;
         this.employeeService = employeeService;
         this.leaveBalanceService = leaveBalanceService;

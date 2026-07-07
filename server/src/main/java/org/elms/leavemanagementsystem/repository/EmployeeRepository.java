@@ -12,6 +12,8 @@ public interface EmployeeRepository extends JpaRepository<Employee, Integer> {
     // Tìm nhân viên theo email
     Optional<Employee> findByEmail(String email);
 
+
+
     // Kiểm tra email hoặc mã nhân viên đã tồn tại chưa khi thêm mới
     boolean existsByEmail(String email);
     boolean existsByEmpCode(String empCode);
@@ -20,6 +22,10 @@ public interface EmployeeRepository extends JpaRepository<Employee, Integer> {
 
     // Tìm danh sách nhân viên theo phòng ban
     List<Employee> findByDepartment_DepartmentID(Integer departmentId);
+    // Đếm số nhân viên đang hoạt động trong một phòng ban cụ thể
+    long countByDepartment_DepartmentIDAndIsActiveTrue(Integer departmentID);
+
+
 
 
 }

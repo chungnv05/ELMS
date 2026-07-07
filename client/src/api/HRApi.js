@@ -37,3 +37,18 @@ export const importEmployeesExcel = async (file) => {
   });
   return response.data;
 };
+
+export const createLeaveType = async (data) => {
+  const response = await api.post('/hr/leave-types/create', data);
+  return response.data;
+};
+
+export const toggleLeaveType = async (id) => {
+  const response = await api.put(`/hr/leave-types/${id}/toggle`);
+  return response.data;
+};
+
+export const getLeaveTypes = async () => {
+  const response = await api.get('/hr/leave-types');
+  return response.data;
+};

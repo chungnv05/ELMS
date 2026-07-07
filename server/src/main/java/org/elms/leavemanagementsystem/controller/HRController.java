@@ -3,14 +3,19 @@ package org.elms.leavemanagementsystem.controller;
 
 import jakarta.validation.Valid;
 import org.elms.leavemanagementsystem.dto.request.CreateAccountRequest;
+import org.elms.leavemanagementsystem.dto.request.DepartmentRequest;
+import org.elms.leavemanagementsystem.dto.request.LeaveTypeRequest;
 import org.elms.leavemanagementsystem.dto.response.CompanyStatsResponse;
 import org.elms.leavemanagementsystem.dto.response.DepartmentsResponse;
 import org.elms.leavemanagementsystem.dto.response.EmployeeResponse;
+import org.elms.leavemanagementsystem.dto.response.LeaveTypeResponse;
 import org.elms.leavemanagementsystem.entity.Employee;
 import org.elms.leavemanagementsystem.exception.ResourceNotFoundException;
 import org.elms.leavemanagementsystem.security.CustomUserDetails;
 import org.elms.leavemanagementsystem.service.DepartmentService;
-import org.elms.leavemanagementsystem.service.EmployeeService;
+import org.elms.leavemanagementsystem.service.HRService;
+import org.elms.leavemanagementsystem.service.LeaveTypeService;
+import org.elms.leavemanagementsystem.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -24,15 +29,19 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/hr")
 public class HRController {
-    private final EmployeeService employeeService;
+    private final HRService hrService;
     private final DepartmentService departmentService;
+    private final LeaveTypeService leaveTypeService;
 
-    public HRController(EmployeeService employeeService,
-                        DepartmentService departmentService) {
-        this.employeeService = employeeService;
+    public HRController(HRService hrService,
+                        DepartmentService departmentService,
+                        LeaveTypeService leaveTypeService) {
+        this.hrService = hrService;
         this.departmentService = departmentService;
+        this.leaveTypeService = leaveTypeService;
     }
 
+    // Tạo tài khoản cho nhân viên mới
     @PostMapping("/create")
     public ResponseEntity<?> createEmployeeAccount(
             @Valid @RequestBody CreateAccountRequest createAccountRequest,
@@ -46,12 +55,13 @@ public class HRController {
 
         Integer hrId = currentEmp.getEmpID();
 
-        employeeService.createEmployeeAccount(hrId, createAccountRequest);
+        hrService.createEmployeeAccount(hrId, createAccountRequest);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(Collections.singletonMap("message", "Tạo tài khoản nhân viên thành công!"));
 
     }
 
+    // API lấy thông số liệu thống kê của công ty
     @GetMapping("/stats")
     public ResponseEntity<?> getCompanyStats(Authentication authentication) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
@@ -61,12 +71,13 @@ public class HRController {
             throw new ResourceNotFoundException("Không tìm thấy thông tin nhân viên!");
         }
 
-        CompanyStatsResponse statsResponse = employeeService.getCompanyStats(currentEmp.getEmpID());
+        CompanyStatsResponse statsResponse = hrService.getCompanyStats(currentEmp.getEmpID());
 
         return ResponseEntity.status(HttpStatus.OK)
                 .body(statsResponse);
     }
 
+    // API lấy các nhân viên trong công ty
     @GetMapping("/employees")
     public ResponseEntity<List<EmployeeResponse>> getAllEmployees(Authentication authentication) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
@@ -79,10 +90,11 @@ public class HRController {
             throw new AccessDeniedException("Không đủ quyền truy cập!");
         }
 
-        List<EmployeeResponse> employees = employeeService.getAllEmployees();
+        List<EmployeeResponse> employees = hrService.getAllEmployees();
         return ResponseEntity.ok(employees);
     }
 
+    // API cập nhật trạng thái tài khoản nhân viên
     @PutMapping("/employees/{empId}/toggle-status")
     public ResponseEntity<?> toggleEmployeeStatus(@PathVariable Integer empId, Authentication authentication) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
@@ -95,10 +107,11 @@ public class HRController {
             throw new AccessDeniedException("Không đủ quyền truy cập!");
         }
 
-        employeeService.toggleEmployeeStatus(empId);
+        hrService.toggleEmployeeStatus(empId);
         return ResponseEntity.ok(Collections.singletonMap("message", "Cập nhật trạng thái tài khoản thành công!"));
     }
 
+    // API lấy danh sách phòng ban
     @GetMapping("/departments")
     public ResponseEntity<List<DepartmentsResponse>> getDepartments(Authentication authentication) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
@@ -116,6 +129,7 @@ public class HRController {
 
     }
 
+    // API tạo tài khoản nhân viên thông qua import excel
     @PostMapping("/employees/import")
     public ResponseEntity<?> importEmployees(@RequestParam("file") MultipartFile file, Authentication authentication) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
@@ -132,7 +146,90 @@ public class HRController {
             return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Vui lòng upload file Excel định dạng .xlsx"));
         }
 
-        employeeService.importEmployeeFromExcel(file);
+        hrService.importEmployeeFromExcel(file);
         return ResponseEntity.ok(Collections.singletonMap("message", "Import dữ liệu nhân viên thành công!"));
+    }
+
+    // API tạo loại nghỉ phép mới
+    @PostMapping("/leave-types/create")
+    public ResponseEntity<?> create(@Valid @RequestBody LeaveTypeRequest request, Authentication authentication) {
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        Employee currentEmp = userDetails.getEmployee();
+
+        if (currentEmp == null) {
+            throw new ResourceNotFoundException("Không tìm thấy thông tin nhân viên!");
+        }
+
+        if (currentEmp.getRole() != Employee.Role.HR_ADMIN) {
+            throw new AccessDeniedException("Không đủ quyền thực hiện thao tác!");
+        }
+
+        leaveTypeService.createLeaveType(request);
+        return ResponseEntity.ok(Collections.singletonMap("message", "Thêm cấu hình loại phép thành công!"));
+    }
+
+    // API tắt loại nghỉ phép
+    @PutMapping("/leave-types/{id}/toggle")
+    public ResponseEntity<?> toggleStatus(@PathVariable Integer id, Authentication authentication) {
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        Employee currentEmp = userDetails.getEmployee();
+        if (currentEmp == null) {
+            throw new ResourceNotFoundException("Không tìm thấy thông tin nhân viên!");
+        }
+        if (currentEmp.getRole() != Employee.Role.HR_ADMIN) {
+            throw new AccessDeniedException("Không đủ quyền thực hiện thao tác!");
+        }
+        leaveTypeService.toggleStatus(id);
+        return ResponseEntity.ok(Collections.singletonMap("message", "Cập nhật trạng thái thành công!"));
+    }
+
+    // API lấy loại nghỉ phép
+    @GetMapping("/leave-types")
+    public ResponseEntity<?> getAllLeaveTypes(Authentication authentication) {
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        Employee currentEmp = userDetails.getEmployee();
+
+        if (currentEmp == null) {
+            throw new ResourceNotFoundException("Không tìm thấy thông tin nhân viên!");
+        }
+
+        if (currentEmp.getRole() != Employee.Role.HR_ADMIN) {
+            throw new AccessDeniedException("Không đủ quyền thực hiện thao tác!");
+        }
+        List<LeaveTypeResponse> leaveTypes = leaveTypeService.getAllLeaveTypes();
+        return ResponseEntity.ok(leaveTypes);
+    }
+
+    // API tạo phòng ban mới
+    @PostMapping("/department/create")
+    public ResponseEntity<?> createDepartment(
+            @Valid @RequestBody DepartmentRequest request,
+            Authentication authentication) {
+
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        Employee currentEmp = userDetails.getEmployee();
+
+        if (currentEmp.getRole() != Employee.Role.HR_ADMIN) {
+            throw new AccessDeniedException("Không đủ quyền thực hiện thao tác!");
+        }
+
+        departmentService.createDepartment(request);
+        return ResponseEntity.ok(Collections.singletonMap("message", "Đã gửi yêu cầu tạo phòng ban, vui lòng chờ cấp trên phê duyệt!"));
+    }
+
+    @PutMapping("/department/{id}/toggle")
+    public ResponseEntity<?> toggleDepartmentStatus(
+            @PathVariable Integer id,
+            Authentication authentication) {
+
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        Employee currentEmp = userDetails.getEmployee();
+
+        if (currentEmp.getRole() != Employee.Role.HR_ADMIN) {
+            throw new AccessDeniedException("Không đủ quyền thực hiện thao tác!");
+        }
+
+        departmentService.toggleDepartmentStatus(id);
+        return ResponseEntity.ok(Collections.singletonMap("message", "Cập nhật trạng thái phòng ban thành công!"));
     }
 }

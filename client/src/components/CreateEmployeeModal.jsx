@@ -141,10 +141,12 @@ export default function CreateEmployeeModal({ onClose, onRefresh, showToast }) {
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
                   >
                     <option value="" disabled>-- Chọn phòng ban --</option>
-                    {departments.map(d => (
-                      <option key={d.departmentID} value={d.departmentID}>
-                        {d.departmentName}
-                      </option>
+                    {departments
+                      .filter(d => d.active)
+                      .map(d => (
+                        <option key={d.departmentID} value={d.departmentID}>
+                          {d.departmentName}
+                        </option>
                     ))}
                   </select>
                 </div>

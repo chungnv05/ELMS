@@ -7,12 +7,14 @@ import PersonalCalendar from "./pages/PersonalCalendar";
 import ProfilePage from "./pages/ProfilePage"
 import ChangePass from "./pages/ChangePass"
 import EmployeeManagement from "./pages/EmployeeManagement";
+import TeamCalendar from "./pages/TeamCalendar"
+import LeaveTypeManagement from "./pages/LeaveTypeManagement"
 
-// Component bảo vệ: Kiểm tra xem người dùng đã có Token chưa
+// Kiểm tra xem người dùng đã có Token chưa
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem("token");
   
-  // Nếu chưa đăng nhập (không có token), đẩy thẳng về trang login
+
   if (!token) {
     return <Navigate to="/login" replace />;
   }
@@ -86,7 +88,22 @@ export default function App() {
             </ProtectedRoute>
           } 
         />
-        
+        <Route 
+          path="/team-calendar" 
+          element={
+            <ProtectedRoute>
+              <TeamCalendar />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/leave-types" 
+          element={
+            <ProtectedRoute>
+              <LeaveTypeManagement />
+            </ProtectedRoute>
+          } 
+        />
         {/* Các route khác sẽ được thêm và bọc bởi <ProtectedRoute> sau */}
       </Routes>
     </BrowserRouter>

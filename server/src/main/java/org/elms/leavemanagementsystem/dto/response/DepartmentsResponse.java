@@ -8,4 +8,5 @@ import lombok.Data;
 public class DepartmentsResponse {
     private Integer departmentID;
     private String departmentName;
+    private boolean active;
 }

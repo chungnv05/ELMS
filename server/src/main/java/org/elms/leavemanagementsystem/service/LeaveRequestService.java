@@ -8,24 +8,18 @@ import org.elms.leavemanagementsystem.dto.response.LeaveRequestForUpdate;
 import org.elms.leavemanagementsystem.dto.response.LeaveRequestsResponse;
 import org.elms.leavemanagementsystem.entity.*;
 import org.elms.leavemanagementsystem.exception.BusinessException;
-import org.elms.leavemanagementsystem.exception.FileStorageException;
 import org.elms.leavemanagementsystem.exception.ResourceNotFoundException;
 import org.elms.leavemanagementsystem.repository.*;
 import org.elms.leavemanagementsystem.util.DateUtils;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
-import javax.swing.plaf.PanelUI;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.time.YearMonth;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -41,7 +35,7 @@ public class LeaveRequestService {
     // Service hỗ trợ
     private final LeaveBalanceService leaveBalanceService;
     private final ApprovalHistoryService approvalHistoryService;
-    private final EmployeeService employeeService;
+    private final UserService employeeService;
     private final LeaveTypeService leaveTypeService;
     private final LeaveEvidenceService leaveEvidenceService;
 
@@ -51,7 +45,7 @@ public class LeaveRequestService {
     public LeaveRequestService(LeaveRequestRepository leaveRequestRepository,
                                LeaveBalanceService leaveBalanceService,
                                ApprovalHistoryService approvalHistoryService,
-                               EmployeeService employeeService,
+                               UserService employeeService,
                                LeaveTypeService leaveTypeService,
                                LeaveEvidenceService leaveEvidenceService,
                                ApprovalHistoryRepository approvalHistoryRepository,
@@ -387,7 +381,7 @@ public class LeaveRequestService {
 
     }
 
-    public List<LeaveEventResponse> getMyCalendar(Integer currentEmpId, int year, int month) {
+    public List<LeaveEventResponse> getUserCalendar(Integer currentEmpId, int year, int month) {
         // Xác định ngày đầu tháng và ngày cuối tháng
         YearMonth yearMonth = YearMonth.of(year, month);
         LocalDate startOfMonth = yearMonth.atDay(1);
@@ -397,6 +391,7 @@ public class LeaveRequestService {
 
         return leaves.stream().map(l -> new LeaveEventResponse(
                 l.getRequestID(),
+                l.getEmployee().getFullName(),
                 l.getStartDate(),
                 l.getEndDate(),
                 l.getLeaveType().getName(),
