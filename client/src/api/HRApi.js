@@ -21,10 +21,6 @@ export const toggleEmployeeStatus = async (empId) => {
   return response.data;
 };
 
-export const getDepartments = async () => {
-  const response = await api.get('hr/departments');
-  return response.data;
-};
 
 export const importEmployeesExcel = async (file) => {
   const formData = new FormData();
@@ -49,6 +45,26 @@ export const toggleLeaveType = async (id) => {
 };
 
 export const getLeaveTypes = async () => {
-  const response = await api.get('/hr/leave-types');
+  const response = await api.get(`/hr/leave-types`);
+  return response.data;
+};
+
+export const getDepartments = async () => {
+  const response = await api.get(`/hr/departments`);
+  return response.data;
+};
+
+export const toggleDepartment = async (id) => {
+  const response = await api.put(`/hr/department/${id}/toggle`);
+  return response.data;
+};
+
+export const createDepartment = async (departmentData) => {
+  const response = await api.post('/hr/department/create', departmentData);
+  return response.data;
+};
+
+export const getManagers = async () => {
+  const response = await api.get(`/hr/managers`);
   return response.data;
 };

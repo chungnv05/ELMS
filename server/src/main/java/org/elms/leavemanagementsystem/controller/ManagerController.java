@@ -145,7 +145,7 @@ public class ManagerController {
 
         List<EmployeeResponse> employees = managerService.getDepartmentEmployees(currentEmp);
         return ResponseEntity.ok(employees);
-        
+
     }
 
 }

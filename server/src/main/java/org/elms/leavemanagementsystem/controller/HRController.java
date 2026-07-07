@@ -5,10 +5,7 @@ import jakarta.validation.Valid;
 import org.elms.leavemanagementsystem.dto.request.CreateAccountRequest;
 import org.elms.leavemanagementsystem.dto.request.DepartmentRequest;
 import org.elms.leavemanagementsystem.dto.request.LeaveTypeRequest;
-import org.elms.leavemanagementsystem.dto.response.CompanyStatsResponse;
-import org.elms.leavemanagementsystem.dto.response.DepartmentsResponse;
-import org.elms.leavemanagementsystem.dto.response.EmployeeResponse;
-import org.elms.leavemanagementsystem.dto.response.LeaveTypeResponse;
+import org.elms.leavemanagementsystem.dto.response.*;
 import org.elms.leavemanagementsystem.entity.Employee;
 import org.elms.leavemanagementsystem.exception.ResourceNotFoundException;
 import org.elms.leavemanagementsystem.security.CustomUserDetails;
@@ -231,5 +228,22 @@ public class HRController {
 
         departmentService.toggleDepartmentStatus(id);
         return ResponseEntity.ok(Collections.singletonMap("message", "Cập nhật trạng thái phòng ban thành công!"));
+    }
+
+    @GetMapping("/managers")
+    public ResponseEntity<?> getAllManagers(Authentication authentication) {
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        Employee currentEmp = userDetails.getEmployee();
+
+        if (currentEmp == null) {
+            throw new ResourceNotFoundException("Không tìm thấy thông tin nhân viên!");
+        }
+
+        if (currentEmp.getRole() != Employee.Role.HR_ADMIN) {
+            throw new AccessDeniedException("Không đủ quyền thực hiện thao tác!");
+        }
+
+        List<ManagerResponse> managerList = hrService.getAllManagers();
+        return ResponseEntity.ok(managerList);
     }
 }

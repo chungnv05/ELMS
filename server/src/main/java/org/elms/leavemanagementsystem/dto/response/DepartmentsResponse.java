@@ -7,6 +7,9 @@ import lombok.Data;
 @Builder
 public class DepartmentsResponse {
     private Integer departmentID;
+    private String departmentCode;
+    private String managerName;
     private String departmentName;
+    private String approvalStatus;
     private boolean active;
 }

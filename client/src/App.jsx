@@ -9,6 +9,7 @@ import ChangePass from "./pages/ChangePass"
 import EmployeeManagement from "./pages/EmployeeManagement";
 import TeamCalendar from "./pages/TeamCalendar"
 import LeaveTypeManagement from "./pages/LeaveTypeManagement"
+import DepartmentManagement from "./pages/DepartmentManagement"
 
 // Kiểm tra xem người dùng đã có Token chưa
 const ProtectedRoute = ({ children }) => {
@@ -104,7 +105,14 @@ export default function App() {
             </ProtectedRoute>
           } 
         />
-        {/* Các route khác sẽ được thêm và bọc bởi <ProtectedRoute> sau */}
+        <Route 
+          path="/departments" 
+          element={
+            <ProtectedRoute>
+              <DepartmentManagement />
+            </ProtectedRoute>
+          } 
+        />
       </Routes>
     </BrowserRouter>
   );

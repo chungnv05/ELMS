@@ -97,21 +97,7 @@ export default function Navbar({ title, toggleSidebar }) {
         {/* Vạch kẻ dọc phân cách (Divider) */}
         <div className="h-8 w-px bg-slate-200 hidden sm:block"></div>
 
-        {/* Nút Chuông Thông Báo (Nằm ngoài cùng bên phải) */}
-        <button 
-          className="relative p-3 text-slate-500 hover:bg-slate-100 hover:text-blue-600 rounded-full transition-all focus:outline-none"
-          title="Thông báo mới"
-        >
-          <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-          </svg>
-          
-          {/* Hiệu ứng chấm đỏ (Ping) báo có thông báo */}
-          <span className="absolute top-2.5 right-3 flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 border border-white"></span>
-          </span>
-        </button>
+        
 
       </div>
     </header>

@@ -112,7 +112,7 @@ export default function CreateEmployeeModal({ onClose, onRefresh, showToast }) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-2">Email hệ thống <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Email  <span className="text-red-500">*</span></label>
                   <input 
                     name="email" type="email" value={formData.email} onChange={handleInputChange} required 
                     placeholder="nguyenvana@congty.com" 
@@ -158,7 +158,8 @@ export default function CreateEmployeeModal({ onClose, onRefresh, showToast }) {
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
                   >
                     <option value="EMPLOYEE">Nhân viên</option>
-                    <option value="MANAGER">Quản lý / Trưởng bộ phận</option>
+                    <option value="MANAGER">Quản lý</option>
+                    <option value="MANAGER">Nhân sự</option>
                   </select>
                 </div>
 

@@ -17,6 +17,7 @@ import java.util.List;
 public class DepartmentService {
     private DepartmentRepository departmentRepository;
     private final EmployeeRepository employeeRepository;
+
     public DepartmentService(DepartmentRepository departmentRepository,
                              EmployeeRepository employeeRepository) {
         this.departmentRepository = departmentRepository;
@@ -29,7 +30,10 @@ public class DepartmentService {
         return departments.stream()
                 .map(department -> DepartmentsResponse.builder()
                         .departmentID(department.getDepartmentID())
+                        .departmentCode(department.getDepartmentCode())
+                        .managerName(department.getManager().getFullName())
                         .departmentName(department.getDepartmentName())
+                        .approvalStatus(department.getApprovalStatus().name())
                         .active(department.getIsActive())
                         .build())
                 .toList();
@@ -40,6 +44,9 @@ public class DepartmentService {
         // Kiểm tra xem mã phòng ban đã tồn tại chưa
         if (departmentRepository.existsByDepartmentCode(request.getDepartmentCode())) {
             throw new BusinessException("Mã phòng ban đã tồn tại trong hệ thống!");
+        }
+        if (request.getManagerId() == null) {
+            throw new BusinessException("Phòng cần có quản lý lãnh đạo!");
         }
 
         Employee manager = employeeRepository.findById(request.getManagerId())

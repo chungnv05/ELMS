@@ -5,6 +5,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.elms.leavemanagementsystem.dto.request.CreateAccountRequest;
 import org.elms.leavemanagementsystem.dto.response.CompanyStatsResponse;
 import org.elms.leavemanagementsystem.dto.response.EmployeeResponse;
+import org.elms.leavemanagementsystem.dto.response.ManagerResponse;
 import org.elms.leavemanagementsystem.entity.*;
 import org.elms.leavemanagementsystem.exception.BusinessException;
 import org.elms.leavemanagementsystem.exception.ResourceNotFoundException;
@@ -20,12 +21,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -61,6 +62,17 @@ public class HRService {
                 .departmentName(emp.getDepartment() != null ? emp.getDepartment().getDepartmentName() : "")
                 .role(emp.getRole().name())
                 .isActive(emp.getIsActive())
+                .build()
+        ).collect(Collectors.toList());
+    }
+
+    public List<ManagerResponse> getAllManagers() {
+        List<Employee> managers = employeeRepository.findByRole(Employee.Role.MANAGER);
+
+        return managers.stream().map(manager -> ManagerResponse.builder()
+                .id(manager.getEmpID())
+                .fullName(manager.getFullName())
+                .employeeCode(manager.getEmpCode())
                 .build()
         ).collect(Collectors.toList());
     }
@@ -162,34 +174,84 @@ public class HRService {
             throw new BusinessException("Không tìm thấy file excel!");
         }
 
-        List<Employee> newEmployees = new ArrayList<>();
-
         try (Workbook workbook = new XSSFWorkbook(employeeFile.getInputStream())) {
             Sheet sheet = workbook.getSheetAt(0);
+            int lastRowNum = sheet.getLastRowNum();
 
-            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
 
+            Set<String> excelEmpCodes = new HashSet<>();
+            Set<String> excelEmails = new HashSet<>();
+
+            for (int i = 1; i <= lastRowNum; i++) {
                 Row row = sheet.getRow(i);
+                if (row == null) continue;
 
-                if (row == null) {
-                    continue;
+                String empCode = getCellValueAsString(row.getCell(0));
+                String email = getCellValueAsString(row.getCell(2));
+
+                if (!empCode.isBlank()) excelEmpCodes.add(empCode);
+                if (!email.isBlank()) excelEmails.add(email);
+            }
+
+            // Phát hiện trung lặp trong db
+            Set<String> ExistingEmpCodes = excelEmpCodes.isEmpty() ? new HashSet<>()
+                    : employeeRepository.findExistingEmpCodes(excelEmpCodes);
+
+            Set<String> ExistingEmails = excelEmails.isEmpty() ? new HashSet<>()
+                    : employeeRepository.findExistingEmails(excelEmails);
+
+            // Phát hiện trùng lặp ngay trong file Excel
+            Set<String> processedEmpCodes = new HashSet<>();
+            Set<String> processedEmails = new HashSet<>();
+
+            // Cache bộ nhớ tạm để tránh N+1 Query khi tìm Department liên tục
+            Map<Integer, Department> departmentCache = new HashMap<>();
+
+            List<Employee> newEmployees = new ArrayList<>();
+
+
+            for (int i = 1; i <= lastRowNum; i++) {
+                Row row = sheet.getRow(i);
+                if (row == null) continue;
+
+                String empCode = getCellValueAsString(row.getCell(0));
+                String email = getCellValueAsString(row.getCell(2));
+                int rowNum = i + 1;
+
+
+                if (ExistingEmpCodes.contains(empCode)) {
+                    throw new BusinessException("Mã nhân viên hàng " + rowNum + " đã tồn tại trong hệ thống!");
+                }
+                if (ExistingEmails.contains(email)) {
+                    throw new BusinessException("Email hàng " + rowNum + " đã tồn tại trong hệ thống!");
                 }
 
-                newEmployees.add(parseEmployee(row, i + 1));
+                // Validate trùng lặp nội bộ trong cùng file Excel
+                if (!processedEmpCodes.add(empCode)) {
+                    throw new BusinessException("Mã nhân viên hàng " + rowNum + " bị trùng lặp bên trong file Excel!");
+                }
+                if (!processedEmails.add(email)) {
+                    throw new BusinessException("Email hàng " + rowNum + " bị trùng lặp bên trong file Excel!");
+                }
+
+
+                newEmployees.add(parseEmployee(row, rowNum, empCode, email, departmentCache));
             }
+
 
             employeeRepository.saveAll(newEmployees);
 
-        } catch (Exception e) {
+        } catch (BusinessException | ResourceNotFoundException e) {
+            throw e;
+        } catch (IOException e) {
             throw new SystemException("Lỗi khi đọc file excel!");
+        } catch (Exception e) {
+            throw new SystemException("Đã xảy ra lỗi hệ thống khi xử lý dữ liệu!");
         }
     }
 
-    private Employee parseEmployee(Row row, int rowNumber) {
-
-        String empCode = getCellValueAsString(row.getCell(0));
+    private Employee parseEmployee(Row row, int rowNumber, String empCode, String email, Map<Integer, Department> departmentCache) {
         String fullName = getCellValueAsString(row.getCell(1));
-        String email = getCellValueAsString(row.getCell(2));
         String password = getCellValueAsString(row.getCell(3));
         String deptId = getCellValueAsString(row.getCell(4));
         String role = getCellValueAsString(row.getCell(5));
@@ -197,18 +259,10 @@ public class HRService {
         String hiredDate = getCellValueAsString(row.getCell(7));
         String address = getCellValueAsString(row.getCell(8));
 
-        validateRequiredFields(
-                empCode,
-                fullName,
-                email,
-                password,
-                rowNumber
-        );
-
-        validateDuplicate(empCode, email, rowNumber);
+        // Kiểm tra các trường dữ liệu bắt buộc phải nhập
+        validateRequiredFields(empCode, fullName, email, password, rowNumber);
 
         Employee employee = new Employee();
-
         employee.setEmpCode(empCode);
         employee.setFullName(fullName);
         employee.setEmail(email);
@@ -218,111 +272,72 @@ public class HRService {
         employee.setIsActive(true);
 
         employee.setRole(parseRole(role, rowNumber));
-        employee.setDepartment(parseDepartment(deptId, rowNumber));
+        employee.setDepartment(parseDepartment(deptId, rowNumber, departmentCache));
         employee.setHiredDate(parseHiredDate(hiredDate, rowNumber));
 
         return employee;
     }
 
-    private void validateRequiredFields(
-            String empCode,
-            String fullName,
-            String email,
-            String password,
-            int rowNumber
-    ) {
-
-        if (empCode.isBlank()) {
-            throw new BusinessException("Mã nhân viên hàng " + rowNumber + " không được để trống!");
-        }
-
-        if (fullName.isBlank()) {
-            throw new BusinessException("Tên đầy đủ hàng " + rowNumber + " không được để trống!");
-        }
-
-        if (email.isBlank()) {
-            throw new BusinessException("Email hàng " + rowNumber + " không được để trống!");
-        }
-
-        if (password.isBlank()) {
-            throw new BusinessException("Mật khẩu hàng " + rowNumber + " không được để trống!");
-        }
-    }
-
-    private void validateDuplicate(
-            String empCode,
-            String email,
-            int rowNumber
-    ) {
-
-        if (employeeRepository.existsByEmpCode(empCode)) {
-            throw new BusinessException("Mã nhân viên hàng " + rowNumber + " đã tồn tại!");
-        }
-
-        if (employeeRepository.existsByEmail(email)) {
-            throw new BusinessException("Email hàng " + rowNumber + " đã tồn tại!");
-        }
+    private void validateRequiredFields(String empCode, String fullName, String email, String password, int rowNumber) {
+        if (empCode.isBlank()) throw new BusinessException("Mã nhân viên hàng " + rowNumber + " không được để trống!");
+        if (fullName.isBlank()) throw new BusinessException("Tên đầy đủ hàng " + rowNumber + " không được để trống!");
+        if (email.isBlank()) throw new BusinessException("Email hàng " + rowNumber + " không được để trống!");
+        if (password.isBlank()) throw new BusinessException("Mật khẩu hàng " + rowNumber + " không được để trống!");
     }
 
     private Employee.Role parseRole(String role, int rowNumber) {
-
         if (role.isBlank()) {
             return Employee.Role.EMPLOYEE;
         }
-
         try {
             return Employee.Role.valueOf(role.trim().toUpperCase());
         } catch (IllegalArgumentException ex) {
-            throw new BusinessException(
-                    "Nhân viên ở hàng " + rowNumber + " có vị trí không hợp lệ!"
-            );
+            throw new BusinessException("Nhân viên ở hàng " + rowNumber + " có vị trí không hợp lệ!");
         }
     }
 
-    private Department parseDepartment(String deptId, int rowNumber) {
-
+    private Department parseDepartment(String deptId, int rowNumber, Map<Integer, Department> departmentCache) {
         if (deptId.isBlank()) {
             return null;
         }
-
         try {
             Integer departmentID = Integer.parseInt(deptId.trim());
-            return departmentRepository.findByDepartmentIDAndIsActive(departmentID, true)
+
+            // Caching tránh việc phải truy vấn vào db
+            if (departmentCache.containsKey(departmentID)) {
+                return departmentCache.get(departmentID);
+            }
+
+            Department dept = departmentRepository.findByDepartmentIDAndIsActive(departmentID, true)
                     .orElseThrow(() -> new ResourceNotFoundException(
                             "Không tìm thấy phòng ban hợp lệ cho nhân viên ở hàng " + rowNumber
                     ));
+
+            departmentCache.put(departmentID, dept);
+            return dept;
         } catch (NumberFormatException ex) {
-            throw new BusinessException(
-                    "Mã phòng ban ở hàng " + rowNumber + " không hợp lệ!"
-            );
+            throw new BusinessException("Mã phòng ban ở hàng " + rowNumber + " không hợp lệ!");
         }
     }
 
-    private LocalDate parseHiredDate(
-            String hiredDate,
-            int rowNumber
-    ) {
-
+    private LocalDate parseHiredDate(String hiredDate, int rowNumber) {
         if (hiredDate.isBlank()) {
             return LocalDate.now();
         }
-
         try {
-            return LocalDate.parse(hiredDate);
+            return LocalDate.parse(hiredDate); // Định dạng chuẩn ISO: yyyy-MM-dd
         } catch (DateTimeParseException ex) {
-            throw new BusinessException(
-                    "Định dạng ngày ở hàng " + rowNumber + " không hợp lệ!"
-            );
+            throw new BusinessException("Định dạng ngày ở hàng " + rowNumber + " không hợp lệ! (Yêu cầu: yyyy-MM-dd)");
         }
     }
 
     private String getCellValueAsString(Cell cell) {
-
         if (cell == null) {
             return "";
         }
-
         DataFormatter formatter = new DataFormatter();
         return formatter.formatCellValue(cell).trim();
     }
+
+
 }
