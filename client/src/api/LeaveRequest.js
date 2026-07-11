@@ -15,7 +15,7 @@ export const getPendingLeaves = async () => {
 };
 
 export const processLeaveRequest = async (approvalData) => {
-  const response = await api.post('/manager/leaves/process', approvalData);
+  const response = await api.post('/leaves/process', approvalData);
   return response.data;
 };
 

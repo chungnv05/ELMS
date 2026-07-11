@@ -1,0 +1,57 @@
+
+
+services:
+  # 1. DATABASE: MySQL
+  elms-db:
+    image: mysql:8.0
+    container_name: elms-mysql
+    restart: always
+    environment:
+      MYSQL_DATABASE: elms_db
+      MYSQL_ROOT_PASSWORD: rootpassword # Thay đổi mật khẩu tùy ý
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql 
+    networks:
+      - elms-network
+
+  # 2. BACKEND: Spring Boot
+  elms-backend:
+    build: ./server
+    container_name: elms-spring-boot
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - elms-db
+    environment:
+      # Ghi đè cấu hình Database. Kết nối qua tên service là 'elms-db' thay vì 'localhost'
+      - SPRING_DATASOURCE_URL=jdbc:mysql://elms-db:3306/elms_db?useSSL=false&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=rootpassword
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+    networks:
+      - elms-network
+
+  # 3. FRONTEND: ReactJS
+  elms-frontend:
+    build: ./client
+    container_name: elms-react-app
+    restart: always
+    ports:
+      - "3000:80" # Ánh xạ port 80 của Nginx ra port 3000 trên máy thật
+    depends_on:
+      - elms-backend
+    networks:
+      - elms-network
+
+# Cấu hình mạng nội bộ cho các container nói chuyện với nhau
+networks:
+  elms-network:
+    driver: bridge
+
+# Mount ổ cứng ảo để dữ liệu MySQL không bị mất khi tắt Docker
+volumes:
+  db_data:

@@ -1,7 +1,7 @@
 package org.elms.leavemanagementsystem.service;
 
 import org.elms.leavemanagementsystem.dto.request.DepartmentRequest;
-import org.elms.leavemanagementsystem.dto.response.DepartmentsResponse;
+import org.elms.leavemanagementsystem.dto.response.DepartmentResponse;
 import org.elms.leavemanagementsystem.entity.Department;
 import org.elms.leavemanagementsystem.entity.Employee;
 import org.elms.leavemanagementsystem.exception.BusinessException;
@@ -24,11 +24,11 @@ public class DepartmentService {
         this.employeeRepository = employeeRepository;
     }
 
-    public List<DepartmentsResponse> getDepartments() {
+    public List<DepartmentResponse> getDepartments() {
         List<Department> departments = departmentRepository.findAll();
 
         return departments.stream()
-                .map(department -> DepartmentsResponse.builder()
+                .map(department -> DepartmentResponse.builder()
                         .departmentID(department.getDepartmentID())
                         .departmentCode(department.getDepartmentCode())
                         .managerName(department.getManager().getFullName())

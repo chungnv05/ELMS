@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -50,7 +51,7 @@ public class HRService {
     }
 
     public List<EmployeeResponse> getAllEmployees() {
-        List<Employee> employees = employeeRepository.findAll(Sort.by(Sort.Direction.DESC, "empID"));
+        List<Employee> employees = employeeRepository.findByRoleNot(Employee.Role.HIGH_LEVEL_MANAGER,Sort.by(Sort.Direction.DESC, "empID"));
 
         // Chuyển đổi từ Entity sang DTO
         return employees.stream().map(emp -> EmployeeResponse.builder()
@@ -66,15 +67,19 @@ public class HRService {
         ).collect(Collectors.toList());
     }
 
-    public List<ManagerResponse> getAllManagers() {
+    public List<ManagerResponse> getAllManagersWithoutDepartment() {
         List<Employee> managers = employeeRepository.findByRole(Employee.Role.MANAGER);
 
-        return managers.stream().map(manager -> ManagerResponse.builder()
-                .id(manager.getEmpID())
-                .fullName(manager.getFullName())
-                .employeeCode(manager.getEmpCode())
-                .build()
-        ).collect(Collectors.toList());
+        List<Integer> assignedManagerIds = departmentRepository.findAllManagerIds();
+
+        return managers.stream()
+                .filter(manager -> !assignedManagerIds.contains(manager.getEmpID()))
+                .map(manager -> ManagerResponse.builder()
+                        .id(manager.getEmpID())
+                        .fullName(manager.getFullName())
+                        .employeeCode(manager.getEmpCode())
+                        .build())
+                .collect(Collectors.toList());
     }
 
     public void createEmployeeAccount(Integer empId, CreateAccountRequest createAccountRequest) {
@@ -112,6 +117,7 @@ public class HRService {
 
         // Save trước để thêm vào leave balance
         employeeRepository.save(employee);
+
 
         LeaveBalance leaveBalance = LeaveBalance.builder()
                 .id(new LeaveBalanceId(
@@ -239,7 +245,24 @@ public class HRService {
             }
 
 
-            employeeRepository.saveAll(newEmployees);
+            for (Employee e : newEmployees) {
+                employeeRepository.save(e);
+
+
+                LeaveBalance leaveBalance = LeaveBalance.builder()
+                        .id(new LeaveBalanceId(
+                                e.getEmpID(),
+                                LocalDate.now().getYear()
+                        ))
+                        .employee(e)
+                        .totalDays(BigDecimal.valueOf(12))
+                        .usedDays(BigDecimal.ZERO)
+                        .pendingDays(BigDecimal.ZERO)
+                        .build();
+
+                leaveBalanceRepository.save(leaveBalance);
+
+            }
 
         } catch (BusinessException | ResourceNotFoundException e) {
             throw e;
@@ -337,6 +360,71 @@ public class HRService {
         }
         DataFormatter formatter = new DataFormatter();
         return formatter.formatCellValue(cell).trim();
+    }
+
+    public byte[] exportLeaveBalanceReport() throws IOException {
+        List<LeaveBalance> balances = leaveBalanceRepository.findAll();
+
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("Quy_Phep_Nhan_Vien");
+            Row headerRow = sheet.createRow(0);
+
+            String[] headers = {"Mã NV", "Họ và Tên", "Phòng ban", "Tổng phép năm", "Đã nghỉ", "Còn lại"};
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+            }
+
+            // Đổ dữ liệu
+            int rowIdx = 1;
+            for (LeaveBalance b : balances) {
+                Row row = sheet.createRow(rowIdx++);
+                row.createCell(0).setCellValue(b.getEmployee().getEmpCode());
+                row.createCell(1).setCellValue(b.getEmployee().getFullName());
+                row.createCell(2).setCellValue(b.getEmployee().getDepartment() != null ? b.getEmployee().getDepartment().getDepartmentName() : "");
+                row.createCell(3).setCellValue(b.getTotalDays().doubleValue());
+                row.createCell(4).setCellValue(b.getUsedDays().doubleValue());
+                row.createCell(5).setCellValue(b.getPendingDays().doubleValue());
+            }
+
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    // Xuất báo cáo chi tiết lịch sử nghỉ phép
+    public byte[] exportLeaveRequestDetails(LocalDate startDate, LocalDate endDate) throws IOException {
+        if (endDate.isBefore(startDate)) {
+            throw new BusinessException("Ngày kết thúc không được trước ngày bắt đầu!");
+        }
+
+        List<LeaveRequest> requests = leaveRequestRepository.findByStartDateGreaterThanEqualAndEndDateLessThanEqual(startDate, endDate);
+
+
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("Chi_Tiet_Nghi_Phep");
+            Row headerRow = sheet.createRow(0);
+
+            String[] headers = {"Mã Đơn", "Mã NV", "Họ Tên", "Loại nghỉ", "Từ ngày", "Đến ngày", "Trạng thái"};
+            for (int i = 0; i < headers.length; i++) {
+                headerRow.createCell(i).setCellValue(headers[i]);
+            }
+
+            int rowIdx = 1;
+            for (LeaveRequest r : requests) {
+                Row row = sheet.createRow(rowIdx++);
+                row.createCell(0).setCellValue(r.getRequestID());
+                row.createCell(1).setCellValue(r.getEmployee().getEmpCode());
+                row.createCell(2).setCellValue(r.getEmployee().getFullName());
+                row.createCell(3).setCellValue(r.getLeaveType().getName());
+                row.createCell(4).setCellValue(r.getStartDate().toString());
+                row.createCell(5).setCellValue(r.getEndDate().toString());
+                row.createCell(6).setCellValue(r.getStatus().name());
+            }
+
+            workbook.write(out);
+            return out.toByteArray();
+        }
     }
 
 

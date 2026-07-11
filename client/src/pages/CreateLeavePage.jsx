@@ -1,9 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../components/DashboardLayout";
-import { createLeaveRequest } from "../api/leaveRequest";
+import { createLeaveRequest } from "../api/LeaveRequest";
 import { getActiveLeaveTypes } from "../api/LeaveType";
 import { employeeMenu } from "../menus/Employee";
+import { hrMenu } from "../menus/HR";
+import { managerMenu } from "../menus/Manager";
+import { HLMMenu } from "../menus/HLM";
 
 export default function CreateLeavePage() {
   const navigate = useNavigate();
@@ -18,6 +21,20 @@ export default function CreateLeavePage() {
     reason: "",
     evidenceFiles: null, // Lưu trữ danh sách file
   });
+
+  const currentMenu = useMemo(() => {
+    const role = localStorage.getItem("role");
+    switch (role) {
+      case "ROLE_HR_ADMIN":
+        return hrMenu;
+      case "ROLE_MANAGER":
+        return managerMenu;
+      case "ROLE_EMPLOYEE":
+        return employeeMenu
+      case "ROLE_HIGH_LEVEL_MANAGER":
+        return HLMMenu;
+    }
+  }, []);
   
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -80,7 +97,7 @@ export default function CreateLeavePage() {
   };
 
   return (
-    <DashboardLayout menuItems={employeeMenu} pageTitle="Tạo Đơn Nghỉ Phép">
+    <DashboardLayout menuItems={currentMenu} pageTitle="Tạo Đơn Nghỉ Phép">
       <div className="max-w-2xl mx-auto bg-white border border-slate-200 rounded-2xl shadow-sm p-8 mt-4">
         <div className="mb-8 border-b border-slate-100 pb-4">
           <h2 className="text-2xl font-bold text-slate-800">Đơn xin nghỉ phép</h2>

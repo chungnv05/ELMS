@@ -22,12 +22,18 @@ public class LeaveApprovalService {
     private final UserService employeeService;
     private final LeaveBalanceService leaveBalanceService;
     private final ApprovalHistoryService approvalHistoryService;
+    private final EmailService emailService;
 
-    public LeaveApprovalService(LeaveRequestService leaveRequestService, UserService employeeService, LeaveBalanceService leaveBalanceService, ApprovalHistoryService approvalHistoryService) {
+    public LeaveApprovalService(LeaveRequestService leaveRequestService,
+                                UserService employeeService,
+                                LeaveBalanceService leaveBalanceService,
+                                ApprovalHistoryService approvalHistoryService,
+                                EmailService emailService) {
         this.leaveRequestService = leaveRequestService;
         this.employeeService = employeeService;
         this.leaveBalanceService = leaveBalanceService;
         this.approvalHistoryService = approvalHistoryService;
+        this.emailService = emailService;
     }
 
     @Transactional
@@ -36,9 +42,6 @@ public class LeaveApprovalService {
         Employee approver = employeeService.getEmployeeById(approverId);
         LeaveRequest leaveRequest = leaveRequestService.getLeaveRequestById(approvalRequest.getRequestId());
 
-        if (approver.getRole() != Employee.Role.MANAGER) {
-            throw new AccessDeniedException("Không đủ quyền thực hiện thao tác!");
-        }
 
         if (leaveRequest.getStatus() != LeaveRequest.Status.PENDING) {
             throw new ConflictException("Đơn nghỉ phép đã được xử lý trước đó");
@@ -87,7 +90,16 @@ public class LeaveApprovalService {
                 approvalRequest.getComment()
         );
 
-        // Bổ sung chức năng thông báo email ở sau
+        // Gửi Email
+        emailService.sendLeaveRequestStatusEmail(
+                leaveRequest.getEmployee().getEmail(),
+                leaveRequest.getEmployee().getFullName(),
+                leaveRequest.getStartDate(),
+                leaveRequest.getEndDate(),
+                statusAfter.name(),
+                leaveRequest.getLeaveType().getName(),
+                approvalRequest.getComment()
+        );
 
 
 

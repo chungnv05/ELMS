@@ -1,5 +1,6 @@
 package org.elms.leavemanagementsystem.repository;
 
+import org.elms.leavemanagementsystem.entity.Employee;
 import org.elms.leavemanagementsystem.entity.LeaveRequest;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -35,6 +36,7 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Inte
             "JOIN lr.employee e " +
             "JOIN e.department d " +
             "WHERE d.manager.empID = :managerId " +
+            "AND e.empID != :managerId " +
             "AND (:status IS NULL OR lr.status = :status) " +
             "ORDER BY lr.createdAt DESC")
     List<LeaveRequest> findRequestsForManager(@Param("managerId") Integer managerId,
@@ -98,4 +100,15 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Inte
             @Param("deptId") Integer deptId,
             @Param("startOfMonth") LocalDate startOfMonth,
             @Param("endOfMonth") LocalDate endOfMonth);
+
+    // Tìm đơn để xuất báo cáo theo khoảng thời gian
+    List<LeaveRequest> findByStartDateGreaterThanEqualAndEndDateLessThanEqual(LocalDate startDate, LocalDate endDate);
+
+    // Lấy đơn của manager và hr theo trạng thái
+    @Query("SELECT lr FROM LeaveRequest lr " +
+            "WHERE lr.employee.role IN :roles " +
+            "AND (:status IS NULL OR lr.status = :status) " +
+            "ORDER BY lr.createdAt DESC")
+    List<LeaveRequest> findRequestsByEmployeeRoles(@Param("roles") List<Employee.Role> roles,
+                                                   @Param("status") LeaveRequest.Status status);
 }

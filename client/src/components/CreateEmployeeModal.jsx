@@ -159,7 +159,7 @@ export default function CreateEmployeeModal({ onClose, onRefresh, showToast }) {
                   >
                     <option value="EMPLOYEE">Nhân viên</option>
                     <option value="MANAGER">Quản lý</option>
-                    <option value="MANAGER">Nhân sự</option>
+                    <option value="HR_ADMIN">Nhân sự</option>
                   </select>
                 </div>
 

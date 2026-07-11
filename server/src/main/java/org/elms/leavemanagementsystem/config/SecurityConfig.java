@@ -62,9 +62,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
 
                         // Phân quyền API
-                        .requestMatchers("/api/admin/**").hasRole("HR_ADMIN")
+                        .requestMatchers("/api/hr/**").hasRole("HR_ADMIN")
                         .requestMatchers("/api/manager/**").hasAnyRole("MANAGER", "HR_ADMIN")
-                        .requestMatchers("/api/leaves/**").hasAnyRole("EMPLOYEE", "MANAGER", "HR_ADMIN")
+                        .requestMatchers("/api/leaves/**").hasAnyRole("EMPLOYEE", "MANAGER", "HR_ADMIN", "HIGH_LEVEL_MANAGER")
+                        .requestMatchers("/api/hlm/**").hasAnyRole("HIGH_LEVEL_MANAGER")
 
                         // Mọi request khác đều yêu cầu đã xác thực
                         .anyRequest().authenticated()

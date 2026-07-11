@@ -1,17 +1,20 @@
 package org.elms.leavemanagementsystem.controller;
 
 import jakarta.validation.Valid;
+import org.elms.leavemanagementsystem.dto.request.LeaveApprovalRequest;
 import org.elms.leavemanagementsystem.dto.request.LeaveRequestForm;
 import org.elms.leavemanagementsystem.dto.request.UpdateLeaveRequestForm;
 import org.elms.leavemanagementsystem.dto.response.*;
 import org.elms.leavemanagementsystem.entity.Employee;
 import org.elms.leavemanagementsystem.exception.ResourceNotFoundException;
 import org.elms.leavemanagementsystem.security.CustomUserDetails;
+import org.elms.leavemanagementsystem.service.LeaveApprovalService;
 import org.elms.leavemanagementsystem.service.LeaveBalanceService;
 import org.elms.leavemanagementsystem.service.LeaveRequestService;
 import org.elms.leavemanagementsystem.service.LeaveTypeService;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.Year;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/leaves")
@@ -27,11 +31,16 @@ public class LeaveController {
     private final LeaveRequestService leaveRequestService;
     private final LeaveTypeService leaveTypeService;
     private final LeaveBalanceService leaveBalanceService;
+    private final LeaveApprovalService leaveApprovalService;
 
-    public LeaveController(LeaveRequestService leaveRequestService, LeaveTypeService leaveTypeService, LeaveBalanceService leaveBalanceService) {
+    public LeaveController(LeaveRequestService leaveRequestService,
+                           LeaveTypeService leaveTypeService,
+                           LeaveBalanceService leaveBalanceService,
+                           LeaveApprovalService leaveApprovalService) {
         this.leaveRequestService = leaveRequestService;
         this.leaveTypeService = leaveTypeService;
         this.leaveBalanceService = leaveBalanceService;
+        this.leaveApprovalService = leaveApprovalService;
     }
 
     // API lấy danh sách loại nghỉ phép đang hoạt động
@@ -169,5 +178,31 @@ public class LeaveController {
         return ResponseEntity.ok(events);
     }
 
+    // API duyệt đơn dùng cho HLM và manager
+    @PostMapping("/process")
+    public ResponseEntity<?> processLeave(@Valid @RequestBody LeaveApprovalRequest request, Authentication authentication) {
+        // Lấy thông tin người dùng đang đăng nhập
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        Employee currentEmp = userDetails.getEmployee();
+
+        if (currentEmp == null) {
+            throw new ResourceNotFoundException("Không tìm thấy thông tin nhân viên!");
+        }
+
+
+        if (currentEmp.getRole() != Employee.Role.MANAGER &&
+                currentEmp.getRole() != Employee.Role.HIGH_LEVEL_MANAGER) {
+            throw new AccessDeniedException("Không đủ quyền thực hiện thao tác!");
+        }
+
+        Integer approverId = currentEmp.getEmpID();
+
+        leaveApprovalService.processLeaveApproval(approverId, request);
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Xử lý đơn nghỉ phép thành công!",
+                "status", 200
+        ));
+    }
 
 }

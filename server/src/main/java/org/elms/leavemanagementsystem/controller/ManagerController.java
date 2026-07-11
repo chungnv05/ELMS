@@ -21,37 +21,16 @@ import java.util.Map;
 @RequestMapping("/api/manager")
 public class ManagerController {
 
-    private final LeaveApprovalService leaveApprovalService;
     private final LeaveRequestService leaveRequestService;
     private final ManagerService managerService;
 
     public ManagerController(LeaveApprovalService leaveApprovalService,
                              LeaveRequestService leaveRequestService,
                              ManagerService managerService) {
-        this.leaveApprovalService = leaveApprovalService;
         this.leaveRequestService = leaveRequestService;
         this.managerService = managerService;
     }
 
-    @PostMapping("/leaves/process")
-    public ResponseEntity<?> processLeave(@Valid @RequestBody LeaveApprovalRequest request, Authentication authentication) {
-        // Lấy thông tin người dùng đang đăng nhập
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        Employee currentEmp = userDetails.getEmployee();
-
-        if (currentEmp == null) {
-            throw new ResourceNotFoundException("Không tìm thấy thông tin nhân viên!");
-        }
-
-        Integer approverId = currentEmp.getEmpID();
-
-        leaveApprovalService.processLeaveApproval(approverId, request);
-
-        return ResponseEntity.ok(Map.of(
-                "message", "Xử lý đơn nghỉ phép thành công!",
-                "status", 200
-        ));
-    }
 
     @GetMapping("/leaves/list")
     public ResponseEntity<?> getManagerLeaveRequests(

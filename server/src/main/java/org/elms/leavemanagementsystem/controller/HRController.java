@@ -12,14 +12,17 @@ import org.elms.leavemanagementsystem.security.CustomUserDetails;
 import org.elms.leavemanagementsystem.service.DepartmentService;
 import org.elms.leavemanagementsystem.service.HRService;
 import org.elms.leavemanagementsystem.service.LeaveTypeService;
-import org.elms.leavemanagementsystem.service.UserService;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 
@@ -110,7 +113,7 @@ public class HRController {
 
     // API lấy danh sách phòng ban
     @GetMapping("/departments")
-    public ResponseEntity<List<DepartmentsResponse>> getDepartments(Authentication authentication) {
+    public ResponseEntity<List<DepartmentResponse>> getDepartments(Authentication authentication) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
         Employee currentEmp = userDetails.getEmployee();
 
@@ -121,7 +124,7 @@ public class HRController {
             throw new AccessDeniedException("Không đủ quyền truy cập!");
         }
 
-        List<DepartmentsResponse> departmentsResponseList = departmentService.getDepartments();
+        List<DepartmentResponse> departmentsResponseList = departmentService.getDepartments();
         return ResponseEntity.ok(departmentsResponseList);
 
     }
@@ -243,7 +246,56 @@ public class HRController {
             throw new AccessDeniedException("Không đủ quyền thực hiện thao tác!");
         }
 
-        List<ManagerResponse> managerList = hrService.getAllManagers();
+        List<ManagerResponse> managerList = hrService.getAllManagersWithoutDepartment();
         return ResponseEntity.ok(managerList);
+    }
+
+    @GetMapping("/reports/leave-balance/export")
+    public ResponseEntity<byte[]> exportLeaveBalance(Authentication authentication) throws IOException {
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        Employee currentEmp = userDetails.getEmployee();
+
+        if (currentEmp == null) {
+            throw new ResourceNotFoundException("Không tìm thấy thông tin nhân viên!");
+        }
+
+        if (currentEmp.getRole() != Employee.Role.HR_ADMIN) {
+            throw new AccessDeniedException("Không đủ quyền thực hiện thao tác!");
+        }
+
+        byte[] data = hrService.exportLeaveBalanceReport();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"Bao_Cao_Quy_Phep.xlsx\"")
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(data);
+    }
+
+    @GetMapping("/reports/leave-requests/export")
+    public ResponseEntity<byte[]> exportLeaveRequests(
+            @RequestParam String startDate,
+            @RequestParam String endDate, Authentication authentication) throws IOException {
+
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        Employee currentEmp = userDetails.getEmployee();
+
+        if (currentEmp == null) {
+            throw new ResourceNotFoundException("Không tìm thấy thông tin nhân viên!");
+        }
+
+        if (currentEmp.getRole() != Employee.Role.HR_ADMIN) {
+            throw new AccessDeniedException("Không đủ quyền thực hiện thao tác!");
+        }
+
+        LocalDate start = LocalDate.parse(startDate);
+        LocalDate end = LocalDate.parse(endDate);
+
+
+        byte[] data = hrService.exportLeaveRequestDetails(start, end);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"Chi_Tiet_Nghi_Phep.xlsx\"")
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(data);
     }
 }

@@ -2,14 +2,15 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
 import DashboardRouter from "./pages/DashboardRouter";
 import CreateLeavePage from "./pages/CreateLeavePage";
-import LeaveApprovalPage from "./pages/LeaveApprovalPage"
+import LeaveApprovalPage from "./pages/LeaveApprovalPage";
 import PersonalCalendar from "./pages/PersonalCalendar";
-import ProfilePage from "./pages/ProfilePage"
-import ChangePass from "./pages/ChangePass"
+import ProfilePage from "./pages/ProfilePage";
+import ChangePass from "./pages/ChangePass";
 import EmployeeManagement from "./pages/EmployeeManagement";
-import TeamCalendar from "./pages/TeamCalendar"
-import LeaveTypeManagement from "./pages/LeaveTypeManagement"
-import DepartmentManagement from "./pages/DepartmentManagement"
+import TeamCalendar from "./pages/TeamCalendar";
+import LeaveTypeManagement from "./pages/LeaveTypeManagement";
+import DepartmentManagement from "./pages/DepartmentManagement";
+import LeaveManagementPage from "./pages/LeaveManagementPage";
 
 // Kiểm tra xem người dùng đã có Token chưa
 const ProtectedRoute = ({ children }) => {
@@ -110,6 +111,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <DepartmentManagement />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/leaves/manage" 
+          element={
+            <ProtectedRoute>
+              <LeaveManagementPage />
             </ProtectedRoute>
           } 
         />

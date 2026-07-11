@@ -68,3 +68,18 @@ export const getManagers = async () => {
   const response = await api.get(`/hr/managers`);
   return response.data;
 };
+
+export const exportLeaveBalanceReport = async () => {
+  const response = await api.get('/hr/reports/leave-balance/export', {
+    responseType: 'blob', // QUAN TRỌNG
+  });
+  return response.data;
+};
+
+export const exportLeaveRequestReport = async (startDate, endDate) => {
+  const response = await api.get('/hr/reports/leave-requests/export', {
+    params: { startDate, endDate },
+    responseType: 'blob', // QUAN TRỌNG
+  });
+  return response.data;
+};

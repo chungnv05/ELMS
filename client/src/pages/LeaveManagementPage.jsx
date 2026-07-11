@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import DashboardLayout from "../components/DashboardLayout";
 import { useNavigate } from "react-router-dom";
 import StatCard from "../components/StatCard";
 import LeaveDetailModal from "../components/LeaveDetailModal";
 import { employeeMenu } from "../menus/Employee";
+import { managerMenu } from "../menus/Manager";
+import { hrMenu } from "../menus/HR";
 import api from "../api/axiosConfig";
 import { getLeaveRequestDetail, deleteLeaveRequest } from "../api/LeaveRequest"; 
 
-export default function EmployeeDashboard() {
+export default function LeaveManagementPage() {
   const navigate = useNavigate();
   const [leaveList, setLeaveList] = useState([]);
   const [balance, setBalance] = useState({
@@ -99,6 +101,19 @@ export default function EmployeeDashboard() {
     }
   };
 
+    const currentMenu = useMemo(() => {
+      const role = localStorage.getItem("role");
+      switch (role) {
+        case "ROLE_HR_ADMIN":
+          return hrMenu;
+        case "ROLE_MANAGER":
+          return managerMenu;
+        case "ROLE_EMPLOYEE":
+        default:
+          return employeeMenu; 
+      }
+    }, []);
+
   useEffect(() => {
     fetchDashboardData();
   }, []);
@@ -126,8 +141,8 @@ export default function EmployeeDashboard() {
 
   return (
     <DashboardLayout 
-      menuItems={employeeMenu}  
-      pageTitle={`TỔNG QUAN CÁ NHÂN`}
+      menuItems={currentMenu}  
+      pageTitle={`QUẢN LÝ ĐƠN NGHỈ`}
     >
       {/* THÀNH PHẦN TOAST NOTIFICATION */}
       <div className={`fixed top-6 right-6 z-[100] transition-all duration-300 transform ${toast.show ? 'translate-y-0 opacity-100' : '-translate-y-10 opacity-0 pointer-events-none'}`}>

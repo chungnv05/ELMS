@@ -1,32 +1,56 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import DashboardLayout from "../components/DashboardLayout";
 import LeaveDetailModal from "../components/LeaveDetailModal";
-import { getPendingLeaves, processLeaveRequest, getLeaveRequestDetail } from "../api/leaveRequest";
+import { getPendingLeaves, processLeaveRequest, getLeaveRequestDetail } from "../api/LeaveRequest";
+import { getLeaveRequestForHLM } from "../api/HLMApi";
 import { managerMenu } from "../menus/Manager";
+import { HLMMenu } from "../menus/HLM";
 
 export default function LeaveApprovalPage() {
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
   
 
-  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
-  
-  const [processingId, setProcessingId] = useState(null);
+  const [fetchError, setFetchError] = useState(null);
 
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+  const [processingId, setProcessingId] = useState(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedLeave, setSelectedLeave] = useState(null);
 
-
   const [rejectModal, setRejectModal] = useState({ isOpen: false, requestId: null, reason: "" });
+  const [approveModal, setApproveModal] = useState({ isOpen: false, requestId: null });
+
+  const currentMenu = useMemo(() => {
+    const role = localStorage.getItem("role");
+    switch (role) {
+      case "ROLE_MANAGER":
+        return managerMenu;
+      case "ROLE_HIGH_LEVEL_MANAGER":
+        return HLMMenu;
+      default:
+        return managerMenu; 
+    }
+  }, []);
 
   const fetchPendingLeaves = async () => {
     setLoading(true);
+    setFetchError(null); 
     try {
-      const data = await getPendingLeaves();
+      const role = localStorage.getItem("role");
+      let data;
+
+      if (role === "ROLE_HIGH_LEVEL_MANAGER") {
+        data = await getLeaveRequestForHLM(); 
+      } else {
+        data = await getPendingLeaves();      
+      }
+      
       setLeaves(data);
     } catch (err) {
-      showToast("Không thể tải danh sách đơn chờ duyệt.", "error");
+      setFetchError(err.response?.data?.message || "Không thể tải danh sách đơn chờ duyệt. Vui lòng kiểm tra lại kết nối!");
+      showToast("Lỗi tải dữ liệu", "error");
     } finally {
       setLoading(false);
     }
@@ -53,12 +77,18 @@ export default function LeaveApprovalPage() {
     }
   };
 
-  const handleApprove = async (id) => {
-    if (!window.confirm("Bạn có chắc chắn muốn DUYỆT đơn này?")) return;
+
+  const confirmApprove = (id) => {
+    setApproveModal({ isOpen: true, requestId: id });
+  };
+
+  const submitApprove = async () => {
+    const targetId = approveModal.requestId;
+    setApproveModal({ isOpen: false, requestId: null }); // Đóng modal
+    setProcessingId(targetId); // Bật loading spinner ở nút
     
-    setProcessingId(id); 
     try {
-      await processLeaveRequest({ requestId: id, action: "APPROVED" });
+      await processLeaveRequest({ requestId: targetId, action: "APPROVED" });
       showToast("Đã duyệt đơn thành công!", "success");
       fetchPendingLeaves();
     } catch (err) {
@@ -68,12 +98,11 @@ export default function LeaveApprovalPage() {
     }
   };
 
-  // Mở Modal từ chối
+
   const openRejectModal = (id) => {
     setRejectModal({ isOpen: true, requestId: id, reason: "" });
   };
 
-  // Xác nhận từ chối từ Modal
   const submitReject = async () => {
     if (!rejectModal.reason.trim()) {
       showToast("Vui lòng nhập lý do từ chối!", "error");
@@ -81,8 +110,8 @@ export default function LeaveApprovalPage() {
     }
 
     const targetId = rejectModal.requestId;
-    setRejectModal({ ...rejectModal, isOpen: false }); // Đóng modal ngay
-    setProcessingId(targetId); // Hiển thị loading
+    setRejectModal({ ...rejectModal, isOpen: false }); 
+    setProcessingId(targetId); 
 
     try {
       await processLeaveRequest({ requestId: targetId, action: "REJECTED", comment: rejectModal.reason });
@@ -96,9 +125,9 @@ export default function LeaveApprovalPage() {
   };
 
   return (
-    <DashboardLayout menuItems={managerMenu} pageTitle="Phê Duyệt Đơn Nghỉ Phép">
+    <DashboardLayout menuItems={currentMenu} pageTitle="Phê Duyệt Đơn Nghỉ Phép">
       
-      {/* 1. THÀNH PHẦN TOAST NOTIFICATION CHUYÊN NGHIỆP */}
+      {/* 1. TOAST NOTIFICATION */}
       <div className={`fixed top-6 right-6 z-[100] transition-all duration-300 transform ${toast.show ? 'translate-y-0 opacity-100' : '-translate-y-10 opacity-0 pointer-events-none'}`}>
         <div className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl border ${toast.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-red-50 border-red-100 text-red-800'}`}>
           {toast.type === 'success' ? (
@@ -114,11 +143,11 @@ export default function LeaveApprovalPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 m-6 relative">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 m-6 relative min-h-[500px]">
         <div className="mb-6 flex justify-between items-center">
           <div>
             <h2 className="text-xl font-bold text-slate-800">Danh sách chờ duyệt</h2>
-            <p className="text-sm text-slate-500">Các đơn nghỉ phép cần Quản lý xác nhận.</p>
+            <p className="text-sm text-slate-500">Các đơn nghỉ phép cần xác nhận.</p>
           </div>
           <button 
             onClick={fetchPendingLeaves} 
@@ -131,22 +160,33 @@ export default function LeaveApprovalPage() {
           </button>
         </div>
 
+        {/* --- UI TRẠNG THÁI --- */}
         {loading && leaves.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 space-y-4">
+          <div className="flex flex-col items-center justify-center py-20 space-y-4">
              <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-             <p className="text-slate-500 font-medium">Đang tải danh sách chờ duyệt...</p>
+             <p className="text-slate-500 font-medium">Đang đồng bộ dữ liệu...</p>
+          </div>
+        ) : fetchError ? (
+          <div className="flex flex-col items-center justify-center py-16 bg-red-50/50 rounded-xl border border-dashed border-red-200 animate-fade-in-up">
+            <svg className="w-12 h-12 text-red-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <p className="font-medium text-slate-600 mb-4">{fetchError}</p>
+            <button onClick={fetchPendingLeaves} className="px-5 py-2 bg-white border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition shadow-sm">
+              Thử lại
+            </button>
           </div>
         ) : leaves.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-300">
-            <svg className="w-12 h-12 text-slate-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-            <p className="font-medium">Tuyệt vời! Hiện không có đơn nào cần duyệt.</p>
+          <div className="flex flex-col items-center justify-center py-20 text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+            <svg className="w-12 h-12 text-emerald-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <p className="font-medium">Hiện không có đơn nào cần duyệt.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 text-slate-600 text-sm border-b border-slate-200">
-                  <th className="p-4 font-semibold rounded-tl-xl">Nhân viên</th>
+                  <th className="p-4 font-semibold rounded-tl-xl">Người tạo</th>
                   <th className="p-4 font-semibold">Loại phép</th>
                   <th className="p-4 font-semibold">Thời gian</th>
                   <th className="p-4 font-semibold">Lý do</th>
@@ -184,13 +224,16 @@ export default function LeaveApprovalPage() {
                           >
                             Chi tiết
                           </button>
+                          
+                          {/* ĐÃ SỬA: Đổi hàm handleApprove trực tiếp thành hàm mở Modal */}
                           <button 
-                            onClick={() => handleApprove(leave.requestId)}
+                            onClick={() => confirmApprove(leave.requestId)}
                             disabled={isProcessing}
                             className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-emerald-200 disabled:opacity-50 flex items-center justify-center min-w-[76px]"
                           >
                             {isProcessing ? <svg className="w-4 h-4 animate-spin text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> : "Duyệt"}
                           </button>
+                          
                           <button 
                             onClick={() => openRejectModal(leave.requestId)}
                             disabled={isProcessing}
@@ -208,9 +251,43 @@ export default function LeaveApprovalPage() {
           </div>
         )}
 
-        {/* 2. MODAL NHẬP LÝ DO TỪ CHỐI */}
+        {/* 2. MODAL XÁC NHẬN PHÊ DUYỆT (MỚI THÊM) */}
+        {approveModal.isOpen && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-fade-in-up">
+              <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 className="text-lg font-bold text-emerald-600 flex items-center gap-2">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  Xác nhận phê duyệt
+                </h3>
+                <button onClick={() => setApproveModal({ isOpen: false, requestId: null })} className="text-slate-400 hover:text-slate-700 text-2xl font-light">×</button>
+              </div>
+              <div className="p-6">
+                <p className="text-slate-600 mb-6 text-sm">
+                  Bạn có chắc chắn muốn phê duyệt đơn nghỉ phép này không? Sau khi duyệt, hệ thống sẽ tự động trừ quỹ phép của nhân viên.
+                </p>
+                <div className="flex justify-end gap-3">
+                  <button 
+                    onClick={() => setApproveModal({ isOpen: false, requestId: null })}
+                    className="px-4 py-2 text-slate-600 font-semibold rounded-xl hover:bg-slate-100 transition"
+                  >
+                    Đóng
+                  </button>
+                  <button 
+                    onClick={submitApprove}
+                    className="px-5 py-2 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 transition shadow-lg shadow-emerald-200"
+                  >
+                    Đồng ý Duyệt
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 3. MODAL NHẬP LÝ DO TỪ CHỐI */}
         {rejectModal.isOpen && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in">
             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in-up">
               <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                 <h3 className="text-lg font-bold text-red-600 flex items-center gap-2">
@@ -232,13 +309,13 @@ export default function LeaveApprovalPage() {
                 <div className="mt-6 flex justify-end gap-3">
                   <button 
                     onClick={() => setRejectModal({ ...rejectModal, isOpen: false })}
-                    className="px-5 py-2.5 text-slate-600 font-semibold rounded-xl hover:bg-slate-100 transition"
+                    className="px-5 py-2 text-slate-600 font-semibold rounded-xl hover:bg-slate-100 transition"
                   >
                     Hủy bỏ
                   </button>
                   <button 
                     onClick={submitReject}
-                    className="px-6 py-2.5 bg-red-600 text-white font-semibold rounded-xl hover:bg-red-700 transition shadow-lg shadow-red-200"
+                    className="px-6 py-2 bg-red-600 text-white font-semibold rounded-xl hover:bg-red-700 transition shadow-lg shadow-red-200"
                   >
                     Xác nhận Từ chối
                   </button>
@@ -248,7 +325,7 @@ export default function LeaveApprovalPage() {
           </div>
         )}
 
-        {/* 3. MODAL CHI TIẾT ĐƠN */}
+        {/* 4. MODAL CHI TIẾT ĐƠN */}
         {isModalOpen && selectedLeave && (
           <LeaveDetailModal 
             isOpen={isModalOpen} 

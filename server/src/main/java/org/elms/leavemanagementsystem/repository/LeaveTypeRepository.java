@@ -11,4 +11,6 @@ import java.util.Optional;
 @Repository
 public interface LeaveTypeRepository extends JpaRepository<LeaveType, Integer> {
     List<LeaveType> findByIsActiveTrue();
+    long countByStatus(LeaveType.Status status);
+    List<LeaveType> findByStatus(LeaveType.Status status);
 }

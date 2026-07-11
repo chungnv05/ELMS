@@ -2,6 +2,8 @@ package org.elms.leavemanagementsystem.repository;
 
 import org.elms.leavemanagementsystem.entity.Employee;
 import java.util.Optional;
+
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -36,6 +38,9 @@ public interface EmployeeRepository extends JpaRepository<Employee, Integer> {
     // Tìm các email đã tồn tại trong Database từ danh sách truyền vào
     @Query("SELECT e.email FROM Employee e WHERE e.email IN :emails")
     Set<String> findExistingEmails(@Param("emails") Set<String> emails);
+
+    // Tìm các nhân viên khác role cho sẵn
+    List<Employee> findByRoleNot(Employee.Role role, Sort sort);
 
 
 }
