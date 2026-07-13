@@ -14,6 +14,9 @@ import org.elms.leavemanagementsystem.repository.DepartmentRepository;
 import org.elms.leavemanagementsystem.repository.EmployeeRepository;
 import org.elms.leavemanagementsystem.repository.LeaveBalanceRepository;
 import org.elms.leavemanagementsystem.repository.LeaveRequestRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -50,21 +53,23 @@ public class HRService {
         this.leaveRequestRepository = leaveRequestRepository;
     }
 
-    public List<EmployeeResponse> getAllEmployees() {
-        List<Employee> employees = employeeRepository.findByRoleNot(Employee.Role.HIGH_LEVEL_MANAGER,Sort.by(Sort.Direction.DESC, "empID"));
+    public Page<EmployeeResponse> getAllEmployees(int page, int size) {
 
-        // Chuyển đổi từ Entity sang DTO
-        return employees.stream().map(emp -> EmployeeResponse.builder()
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "empID"));
+
+        // 2. Query DB để lấy đúng 1 trang dữ liệu
+        Page<Employee> employeePage = employeeRepository.findByRoleNot(Employee.Role.HIGH_LEVEL_MANAGER, pageable);
+
+        return employeePage.map(emp -> EmployeeResponse.builder()
                 .empID(emp.getEmpID())
                 .empCode(emp.getEmpCode())
                 .fullName(emp.getFullName())
                 .email(emp.getEmail())
-                .phoneNumber(emp.getPhoneNumber())
-                .departmentName(emp.getDepartment() != null ? emp.getDepartment().getDepartmentName() : "")
+                .departmentName(emp.getDepartment() != null ? emp.getDepartment().getDepartmentName() : "Chưa có")
                 .role(emp.getRole().name())
                 .isActive(emp.getIsActive())
                 .build()
-        ).collect(Collectors.toList());
+        );
     }
 
     public List<ManagerResponse> getAllManagersWithoutDepartment() {

@@ -17,8 +17,6 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // Spring Security thường yêu cầu tiền tố "ROLE_"
-        // Ví dụ: EMPLOYEE -> ROLE_EMPLOYEE
         return Collections.singleton(new SimpleGrantedAuthority("ROLE_" + employee.getRole().name()));
     }
 
@@ -29,7 +27,7 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public String getUsername() {
-        return employee.getEmail(); // Dùng email làm username đăng nhập
+        return employee.getEmail();
     }
 
     @Override

@@ -12,6 +12,7 @@ import org.elms.leavemanagementsystem.security.CustomUserDetails;
 import org.elms.leavemanagementsystem.service.DepartmentService;
 import org.elms.leavemanagementsystem.service.HRService;
 import org.elms.leavemanagementsystem.service.LeaveTypeService;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -79,7 +80,9 @@ public class HRController {
 
     // API lấy các nhân viên trong công ty
     @GetMapping("/employees")
-    public ResponseEntity<List<EmployeeResponse>> getAllEmployees(Authentication authentication) {
+    public ResponseEntity<Page<EmployeeResponse>> getAllEmployees(Authentication authentication,
+                                                                  @RequestParam(defaultValue = "0") int page,
+                                                                  @RequestParam(defaultValue = "10") int size) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
         Employee currentEmp = userDetails.getEmployee();
 
@@ -90,8 +93,8 @@ public class HRController {
             throw new AccessDeniedException("Không đủ quyền truy cập!");
         }
 
-        List<EmployeeResponse> employees = hrService.getAllEmployees();
-        return ResponseEntity.ok(employees);
+        Page<EmployeeResponse> response = hrService.getAllEmployees(page, size);
+        return ResponseEntity.ok(response);
     }
 
     // API cập nhật trạng thái tài khoản nhân viên
@@ -103,9 +106,7 @@ public class HRController {
         if (currentEmp == null) {
             throw new ResourceNotFoundException("Không tìm thấy thông tin nhân viên!");
         }
-        if (currentEmp.getRole() != Employee.Role.HR_ADMIN) {
-            throw new AccessDeniedException("Không đủ quyền truy cập!");
-        }
+
 
         hrService.toggleEmployeeStatus(empId);
         return ResponseEntity.ok(Collections.singletonMap("message", "Cập nhật trạng thái tài khoản thành công!"));
@@ -120,9 +121,7 @@ public class HRController {
         if (currentEmp == null) {
             throw new ResourceNotFoundException("Không tìm thấy thông tin nhân viên!");
         }
-        if (currentEmp.getRole() != Employee.Role.HR_ADMIN) {
-            throw new AccessDeniedException("Không đủ quyền truy cập!");
-        }
+
 
         List<DepartmentResponse> departmentsResponseList = departmentService.getDepartments();
         return ResponseEntity.ok(departmentsResponseList);
@@ -139,9 +138,7 @@ public class HRController {
             throw new ResourceNotFoundException("Không tìm thấy thông tin nhân viên!");
         }
 
-        if (currentEmp.getRole() != Employee.Role.HR_ADMIN) {
-            throw new AccessDeniedException("Không đủ quyền truy cập!");
-        }
+
         if (!file.getOriginalFilename().endsWith(".xlsx")) {
             return ResponseEntity.badRequest().body(Collections.singletonMap("message", "Vui lòng upload file Excel định dạng .xlsx"));
         }
@@ -160,9 +157,7 @@ public class HRController {
             throw new ResourceNotFoundException("Không tìm thấy thông tin nhân viên!");
         }
 
-        if (currentEmp.getRole() != Employee.Role.HR_ADMIN) {
-            throw new AccessDeniedException("Không đủ quyền thực hiện thao tác!");
-        }
+
 
         leaveTypeService.createLeaveType(request);
         return ResponseEntity.ok(Collections.singletonMap("message", "Thêm cấu hình loại phép thành công!"));
@@ -176,9 +171,7 @@ public class HRController {
         if (currentEmp == null) {
             throw new ResourceNotFoundException("Không tìm thấy thông tin nhân viên!");
         }
-        if (currentEmp.getRole() != Employee.Role.HR_ADMIN) {
-            throw new AccessDeniedException("Không đủ quyền thực hiện thao tác!");
-        }
+
         leaveTypeService.toggleStatus(id);
         return ResponseEntity.ok(Collections.singletonMap("message", "Cập nhật trạng thái thành công!"));
     }
@@ -193,9 +186,7 @@ public class HRController {
             throw new ResourceNotFoundException("Không tìm thấy thông tin nhân viên!");
         }
 
-        if (currentEmp.getRole() != Employee.Role.HR_ADMIN) {
-            throw new AccessDeniedException("Không đủ quyền thực hiện thao tác!");
-        }
+
         List<LeaveTypeResponse> leaveTypes = leaveTypeService.getAllLeaveTypes();
         return ResponseEntity.ok(leaveTypes);
     }
@@ -209,9 +200,7 @@ public class HRController {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
         Employee currentEmp = userDetails.getEmployee();
 
-        if (currentEmp.getRole() != Employee.Role.HR_ADMIN) {
-            throw new AccessDeniedException("Không đủ quyền thực hiện thao tác!");
-        }
+
 
         departmentService.createDepartment(request);
         return ResponseEntity.ok(Collections.singletonMap("message", "Đã gửi yêu cầu tạo phòng ban, vui lòng chờ cấp trên phê duyệt!"));
@@ -225,9 +214,7 @@ public class HRController {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
         Employee currentEmp = userDetails.getEmployee();
 
-        if (currentEmp.getRole() != Employee.Role.HR_ADMIN) {
-            throw new AccessDeniedException("Không đủ quyền thực hiện thao tác!");
-        }
+
 
         departmentService.toggleDepartmentStatus(id);
         return ResponseEntity.ok(Collections.singletonMap("message", "Cập nhật trạng thái phòng ban thành công!"));
@@ -242,9 +229,7 @@ public class HRController {
             throw new ResourceNotFoundException("Không tìm thấy thông tin nhân viên!");
         }
 
-        if (currentEmp.getRole() != Employee.Role.HR_ADMIN) {
-            throw new AccessDeniedException("Không đủ quyền thực hiện thao tác!");
-        }
+
 
         List<ManagerResponse> managerList = hrService.getAllManagersWithoutDepartment();
         return ResponseEntity.ok(managerList);
@@ -259,9 +244,7 @@ public class HRController {
             throw new ResourceNotFoundException("Không tìm thấy thông tin nhân viên!");
         }
 
-        if (currentEmp.getRole() != Employee.Role.HR_ADMIN) {
-            throw new AccessDeniedException("Không đủ quyền thực hiện thao tác!");
-        }
+
 
         byte[] data = hrService.exportLeaveBalanceReport();
 
@@ -283,9 +266,7 @@ public class HRController {
             throw new ResourceNotFoundException("Không tìm thấy thông tin nhân viên!");
         }
 
-        if (currentEmp.getRole() != Employee.Role.HR_ADMIN) {
-            throw new AccessDeniedException("Không đủ quyền thực hiện thao tác!");
-        }
+
 
         LocalDate start = LocalDate.parse(startDate);
         LocalDate end = LocalDate.parse(endDate);

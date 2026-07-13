@@ -60,21 +60,5 @@ public class AuthController {
         return ResponseEntity.ok(new AuthResponse(token, role));
     }
 
-    @GetMapping("/user/profile")
-    public ResponseEntity<?> getUserProfile(Authentication authentication) {
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        Employee currentEmp = userDetails.getEmployee();
 
-        if (currentEmp == null) {
-            throw new ResourceNotFoundException("Không tìm thấy thông tin nhân viên!");
-        }
-
-        UserInfoResponse profile = UserInfoResponse.builder()
-                .fullName(currentEmp.getFullName())
-                .empCode(currentEmp.getEmpCode())
-                .build();
-
-        return ResponseEntity.ok(profile);
-
-    }
 }

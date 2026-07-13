@@ -6,6 +6,12 @@ import CreateEmployeeModal from "../components/CreateEmployeeModal";
 
 export default function EmployeeManagement() {
   const [employees, setEmployees] = useState([]);
+  
+  // THÊM STATE QUẢN LÝ PHÂN TRANG
+  const [currentPage, setCurrentPage] = useState(0); 
+  const [totalPages, setTotalPages] = useState(0);
+  const pageSize = 10; // Số lượng nhân viên 1 trang
+
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState(null);
@@ -14,16 +20,22 @@ export default function EmployeeManagement() {
   const [toggleModal, setToggleModal] = useState({ isOpen: false, empId: null, empName: "", currentStatus: true });
   const [isToggling, setIsToggling] = useState(false);
 
+  // GỌI LẠI API MỖI KHI ĐỔI TRANG
   useEffect(() => {
     fetchEmployees();
-  }, []);
+  }, [currentPage]);
 
   const fetchEmployees = async () => {
     setIsLoading(true);
     setError(null); 
     try {
-      const data = await getEmployees();
-      setEmployees(data);
+      // TRUYỀN THAM SỐ PAGE VÀ SIZE VÀO HÀM GỌI API
+      const data = await getEmployees(currentPage, pageSize);
+      
+      // LẤY MẢNG NHÂN VIÊN TỪ data.content
+      setEmployees(data.content || []); 
+      // LẤY TỔNG SỐ TRANG TỪ data.totalPages
+      setTotalPages(data.totalPages || 0); 
     } catch (err) {
       setError(err.response?.data?.message || "Không thể kết nối đến máy chủ. Vui lòng kiểm tra đường truyền và thử lại.");
     } finally {
@@ -36,11 +48,9 @@ export default function EmployeeManagement() {
     setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000);
   };
 
-
   const confirmToggle = (empId, empName, currentStatus) => {
     setToggleModal({ isOpen: true, empId, empName, currentStatus });
   };
-
 
   const executeToggle = async () => {
     if (!toggleModal.empId) return;
@@ -60,6 +70,8 @@ export default function EmployeeManagement() {
     }
   };
 
+  // Lưu ý: Tìm kiếm này hiện tại chỉ lọc trên 10 người của trang hiện tại. 
+  // Để tìm kiếm toàn hệ thống, bạn sẽ cần gửi searchQuery xuống Backend sau.
   const filteredEmployees = employees.filter(emp => 
     emp.fullName.toLowerCase().includes(searchQuery.toLowerCase()) || 
     emp.empCode.toLowerCase().includes(searchQuery.toLowerCase())
@@ -76,6 +88,7 @@ export default function EmployeeManagement() {
   return (
     <DashboardLayout menuItems={hrMenu} pageTitle="Quản Lý Nhân Sự">
       
+      {/* Khối Toast Message (Giữ nguyên) */}
       <div className={`fixed top-6 right-6 z-[100] transition-all duration-300 transform ${toast.show ? 'translate-y-0 opacity-100' : '-translate-y-10 opacity-0 pointer-events-none'}`}>
         <div className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl border ${toast.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-red-50 border-red-100 text-red-800'}`}>
           {toast.type === 'success' ? (
@@ -93,7 +106,7 @@ export default function EmployeeManagement() {
 
       <div className="m-6 bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden flex flex-col min-h-[600px]">
         
-        {/* Header & Thanh công cụ */}
+        {/* Header & Thanh công cụ (Giữ nguyên) */}
         <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold text-slate-800">Danh sách nhân sự</h2>
@@ -126,7 +139,7 @@ export default function EmployeeManagement() {
           </div>
         </div>
 
-        {/* Bảng dữ liệu / Các trạng thái Loading & Error */}
+        {/* Bảng dữ liệu (Giữ nguyên phần nội dung) */}
         <div className="overflow-x-auto flex-1">
           <table className="w-full text-left text-sm h-full">
             <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200 sticky top-0 z-10">
@@ -224,9 +237,6 @@ export default function EmployeeManagement() {
                     
                     <td className="px-6 py-4 text-center">
                       <div className="flex items-center justify-center gap-2">
-                        
-                        
-                        {/* Nút Khóa / Mở khóa có gọi confirmToggle */}
                         <button 
                           onClick={() => confirmToggle(emp.empID, emp.fullName, emp.isActive)}
                           className={`p-2 rounded-lg transition ${emp.isActive ? 'text-slate-400 hover:text-amber-600 hover:bg-amber-50' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'}`} 
@@ -246,12 +256,38 @@ export default function EmployeeManagement() {
             </tbody>
           </table>
         </div>
+
+        {/* THÊM THANH ĐIỀU HƯỚNG PHÂN TRANG VÀO ĐÂY */}
+        {!isLoading && !error && totalPages > 0 && (
+          <div className="p-4 border-t border-slate-100 flex items-center justify-between bg-white">
+            <span className="text-sm font-medium text-slate-500">
+              Trang {currentPage + 1} / {totalPages}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+                disabled={currentPage === 0}
+                className="px-4 py-2 text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 transition disabled:opacity-50 disabled:hover:bg-white disabled:cursor-not-allowed"
+              >
+                Trang trước
+              </button>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
+                disabled={currentPage >= totalPages - 1}
+                className="px-4 py-2 text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 transition disabled:opacity-50 disabled:hover:bg-white disabled:cursor-not-allowed"
+              >
+                Trang sau
+              </button>
+            </div>
+          </div>
+        )}
+
       </div>
 
+      {/* Modal xác nhận (Giữ nguyên) */}
       {toggleModal.isOpen && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/40 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-sm overflow-hidden animate-fade-in-up">
-            
             <div className="p-5">
               <h3 className="text-base font-bold text-slate-900 mb-2">
                 {toggleModal.currentStatus ? "Khóa tài khoản" : "Mở khóa tài khoản"}
@@ -261,7 +297,6 @@ export default function EmployeeManagement() {
                 <span className="font-semibold text-slate-900"> {toggleModal.empName}</span>?
               </p>
             </div>
-            
             <div className="px-5 pb-5 flex justify-end gap-2">
               <button 
                 onClick={() => setToggleModal({ isOpen: false, empId: null, empName: "", currentStatus: true })}
@@ -278,7 +313,6 @@ export default function EmployeeManagement() {
                 {isToggling ? "Đang xử lý..." : "Xác nhận"}
               </button>
             </div>
-
           </div>
         </div>
       )}
